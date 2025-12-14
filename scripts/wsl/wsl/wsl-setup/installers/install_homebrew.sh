@@ -1,6 +1,3 @@
-############################################################
-# File: installers/install_homebrew.sh
-############################################################
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -22,3 +19,4 @@ elif [[ -d "/home/linuxbrew/.linuxbrew" ]]; then
 fi
 
 log "Homebrew installation complete."
+
