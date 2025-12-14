@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# ============================
+# Pre-flight checks
+# ============================
+if [[ "$(id -u)" -eq 0 ]]; then
+  err "Do not run this script as root or with sudo. Run as a normal user."
+fi
+
 
 # ============================
 # Configuration
