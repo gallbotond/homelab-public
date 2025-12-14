@@ -6,7 +6,7 @@ set -euo pipefail
 # Configuration
 # ============================
 # Change this to your repo root where scripts live
-REPO_RAW_BASE="https://raw.githubusercontent.com/gallbotond/homelab-public/main/scripts/wsl"
+REPO_RAW_BASE="https://raw.githubusercontent.com/gallbotond/homelab-public/main/scripts/wsl/wsl-setup"
 
 
 # Temporary working directory
