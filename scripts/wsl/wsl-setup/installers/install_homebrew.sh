@@ -23,11 +23,13 @@ fi
 
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-# Activate brew
-if [[ -d "$HOME/.linuxbrew" ]]; then
-  eval "$("$HOME/.linuxbrew/bin/brew" shellenv)"
-elif [[ -d "/home/linuxbrew/.linuxbrew" ]]; then
+# Ensure Homebrew is available in this shell session
+if [[ -x "/home/linuxbrew/.linuxbrew/bin/brew" ]]; then
   eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+elif [[ -x "$HOME/.linuxbrew/bin/brew" ]]; then
+  eval "$("$HOME/.linuxbrew/bin/brew" shellenv)"
+else
+  err "Homebrew installed but brew binary not found"
 fi
 
 log "Homebrew installation complete."
