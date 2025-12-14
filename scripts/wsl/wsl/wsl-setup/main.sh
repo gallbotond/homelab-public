@@ -17,24 +17,10 @@ trap 'rm -rf "$WORKDIR"' EXIT
 # ============================
 # Utilities
 # ============================
-log() { printf "
-␛
-[1;34m[INFO]
-␛
-[0m %s
-" "$*"; }
-warn() { printf "
-␛
-[1;33m[WARN]
-␛
-[0m %s
-" "$*"; }
-err() { printf "
-␛
-[1;31m[ERROR]
-␛
-[0m %s
-" "$*"; exit 1; }
+log()    { printf "\033[1;34m[INF]\033[0m %s\n" "$*"; }
+warn()   { printf "\033[1;33m[WAR]\033[0m %s\n" "$*" >&2; }
+err()    { printf "\033[1;31m[ERR]\033[0m %s\n" "$*" >&2; exit 1; }
+run()    { log "$*"; eval "$*"; }
 
 
 fetch_and_run() {
