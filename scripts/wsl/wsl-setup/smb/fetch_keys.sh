@@ -38,7 +38,25 @@ fi
 [[ -z "$SMB_SERVER" ]] && [[ $NON_INTERACTIVE -eq 0 ]] && read -rp "SMB server: " SMB_SERVER
 [[ -z "$SMB_SHARE" ]] && [[ $NON_INTERACTIVE -eq 0 ]] && read -rp "SMB share: " SMB_SHARE
 [[ -z "$SMB_USER" ]] && [[ $NON_INTERACTIVE -eq 0 ]] && read -rp "SMB username: " SMB_USER
-[[ -z "$SMB_PASS" ]] && [[ $NON_INTERACTIVE -eq 0 ]] && { printf "SMB password: "; stty -echo; read -r SMB_PASS; stty echo; printf "\n"; }
+# [[ -z "$SMB_PASS" ]] && [[ $NON_INTERACTIVE -eq 0 ]] && { printf "SMB password: "; stty -echo; read -r SMB_PASS; stty echo; printf "\n"; }
+
+# ✅ TTY-safe SMB password prompt
+if [[ $NON_INTERACTIVE -eq 0 && -z "$SMB_PASS" ]]; then
+  if [[ -t 0 ]]; then
+    printf "SMB password: "
+    stty -echo
+    read -r SMB_PASS
+    stty echo
+    printf "\n"
+  else
+    printf "SMB password: " > /dev/tty
+    stty -echo < /dev/tty
+    read -r SMB_PASS < /dev/tty
+    stty echo < /dev/tty
+    printf "\n" > /dev/tty
+  fi
+fi
+
 
 log "Listing files on SMB share..."
 list=$(smbclient //"$SMB_SERVER"/"$SMB_SHARE" -U "${SMB_USER}%${SMB_PASS}" -c "ls $SMB_PATH" 2>/dev/null) || err "SMB listing failed"
