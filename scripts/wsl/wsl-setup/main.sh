@@ -1,6 +1,32 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+
+# ============================
+# Utilities
+# ============================
+log()    { printf "\033[1;34m[INF]\033[0m %s\n" "$*"; }
+warn()   { printf "\033[1;33m[WAR]\033[0m %s\n" "$*" >&2; }
+err()    { printf "\033[1;31m[ERR]\033[0m %s\n" "$*" >&2; exit 1; }
+run()    { log "$*"; eval "$*"; }
+
+
+fetch_and_run() {
+local relative_path="$1"; shift
+local url="$REPO_RAW_BASE/$relative_path"
+local file="$WORKDIR/$(basename "$relative_path")"
+
+
+log "Fetching $url"
+curl -fsSL "$url" -o "$file" || err "Failed to download $url"
+chmod +x "$file"
+
+
+"$file" "$@"
+}
+
+
+
 # ============================
 # Pre-flight checks
 # ============================
@@ -30,30 +56,6 @@ REPO_RAW_BASE="https://raw.githubusercontent.com/gallbotond/homelab-public/main/
 # Temporary working directory
 WORKDIR="$(mktemp -d)"
 trap 'rm -rf "$WORKDIR"' EXIT
-
-
-# ============================
-# Utilities
-# ============================
-log()    { printf "\033[1;34m[INF]\033[0m %s\n" "$*"; }
-warn()   { printf "\033[1;33m[WAR]\033[0m %s\n" "$*" >&2; }
-err()    { printf "\033[1;31m[ERR]\033[0m %s\n" "$*" >&2; exit 1; }
-run()    { log "$*"; eval "$*"; }
-
-
-fetch_and_run() {
-local relative_path="$1"; shift
-local url="$REPO_RAW_BASE/$relative_path"
-local file="$WORKDIR/$(basename "$relative_path")"
-
-
-log "Fetching $url"
-curl -fsSL "$url" -o "$file" || err "Failed to download $url"
-chmod +x "$file"
-
-
-"$file" "$@"
-}
 
 
 # ============================
