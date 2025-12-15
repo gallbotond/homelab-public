@@ -4,6 +4,19 @@ set -euo pipefail
 log() { printf "[smb] %s\n" "$*"; }
 err() { printf "[smb-error] %s\n" "$*"; exit 1; }
 
+read_tty() {
+  local prompt="$1"
+  local var
+  if [[ -t 0 ]]; then
+    read -rp "$prompt" var
+  else
+    printf "%s" "$prompt" > /dev/tty
+    read -r var < /dev/tty
+  fi
+  printf "%s" "$var"
+}
+
+
 # Default values
 SMB_SERVER=""
 SMB_SHARE=""
@@ -35,10 +48,19 @@ if ! command -v smbclient >/dev/null; then
   fi
 fi
 
-[[ -z "$SMB_SERVER" ]] && [[ $NON_INTERACTIVE -eq 0 ]] && read -rp "SMB server: " SMB_SERVER
-[[ -z "$SMB_SHARE" ]] && [[ $NON_INTERACTIVE -eq 0 ]] && read -rp "SMB share: " SMB_SHARE
-[[ -z "$SMB_USER" ]] && [[ $NON_INTERACTIVE -eq 0 ]] && read -rp "SMB username: " SMB_USER
+# [[ -z "$SMB_SERVER" ]] && [[ $NON_INTERACTIVE -eq 0 ]] && read -rp "SMB server: " SMB_SERVER
+# [[ -z "$SMB_SHARE" ]] && [[ $NON_INTERACTIVE -eq 0 ]] && read -rp "SMB share: " SMB_SHARE
+# [[ -z "$SMB_USER" ]] && [[ $NON_INTERACTIVE -eq 0 ]] && read -rp "SMB username: " SMB_USER
+[[ -z "$SMB_SERVER" && $NON_INTERACTIVE -eq 0 ]] && SMB_SERVER="$(read_tty "SMB server: ")"
+[[ -z "$SMB_SHARE"  && $NON_INTERACTIVE -eq 0 ]] && SMB_SHARE="$(read_tty "SMB share: ")"
+[[ -z "$SMB_USER"   && $NON_INTERACTIVE -eq 0 ]] && SMB_USER="$(read_tty "SMB username: ")"
 # [[ -z "$SMB_PASS" ]] && [[ $NON_INTERACTIVE -eq 0 ]] && { printf "SMB password: "; stty -echo; read -r SMB_PASS; stty echo; printf "\n"; }
+
+for v in SMB_SERVER SMB_SHARE SMB_USER SMB_PASS; do
+  if [[ -z "${!v}" ]]; then
+    err "$v is required but not set"
+  fi
+done
 
 # TTY-safe SMB password prompt
 if [[ $NON_INTERACTIVE -eq 0 && -z "$SMB_PASS" ]]; then
