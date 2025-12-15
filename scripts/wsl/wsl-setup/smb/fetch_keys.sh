@@ -56,12 +56,6 @@ fi
 [[ -z "$SMB_USER"   && $NON_INTERACTIVE -eq 0 ]] && SMB_USER="$(read_tty "SMB username: ")"
 # [[ -z "$SMB_PASS" ]] && [[ $NON_INTERACTIVE -eq 0 ]] && { printf "SMB password: "; stty -echo; read -r SMB_PASS; stty echo; printf "\n"; }
 
-for v in SMB_SERVER SMB_SHARE SMB_USER SMB_PASS; do
-  if [[ -z "${!v}" ]]; then
-    err "$v is required but not set"
-  fi
-done
-
 # TTY-safe SMB password prompt
 if [[ $NON_INTERACTIVE -eq 0 && -z "$SMB_PASS" ]]; then
   if [[ -t 0 ]]; then
@@ -84,6 +78,11 @@ if [[ $NON_INTERACTIVE -eq 1 && -z "$SMB_PASS" ]]; then
   err "SMB password must be provided in non-interactive mode"
 fi
 
+for v in SMB_SERVER SMB_SHARE SMB_USER SMB_PASS; do
+  if [[ -z "${!v}" ]]; then
+    err "$v is required but not set"
+  fi
+done
 
 log "Listing files on SMB share..."
 list=$(smbclient //"$SMB_SERVER"/"$SMB_SHARE" -U "${SMB_USER}%${SMB_PASS}" -c "ls $SMB_PATH" 2>/dev/null) || err "SMB listing failed"
