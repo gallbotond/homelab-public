@@ -9,6 +9,7 @@ if [[ "$(id -u)" -eq 0 ]]; then
 fi
 
 # Ensure required tools for asdf plugin installation
+log "Checking for required packages..."
 REQUIRED_PACKAGES=(unzip curl git)
 for pkg in "${REQUIRED_PACKAGES[@]}"; do
     if ! command -v "$pkg" &>/dev/null; then
@@ -17,7 +18,6 @@ for pkg in "${REQUIRED_PACKAGES[@]}"; do
         sudo apt install -y "$pkg"
     fi
 done
-
 
 
 # ============================
