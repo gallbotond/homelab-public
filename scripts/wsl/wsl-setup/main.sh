@@ -56,8 +56,11 @@ fetch_and_run "installers/install_zoxide.sh"
 fetch_and_run "installers/install_homebrew.sh"
 
 # Make brew immediately available
+log "Configuring Homebrew for current shell session"
 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+
 # Ensure persistent PATH for future shells
+log "Ensuring Homebrew is in PATH for future shell sessions"
 grep -qxF 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' ~/.bashrc || \
     echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> ~/.bashrc
 
