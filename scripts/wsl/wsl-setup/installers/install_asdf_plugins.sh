@@ -11,7 +11,7 @@ TOOLS=("terraform" "terragrunt")
 
 for tool in "${TOOLS[@]}"; do
     log "Ensuring plugin $tool exists..."
-    asdf plugin-add "$tool" || true
+    asdf plugin add "$tool" || true
 
     log "Installing latest $tool..."
     latest_version=$(asdf latest "$tool")
