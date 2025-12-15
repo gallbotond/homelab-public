@@ -8,6 +8,17 @@ if [[ "$(id -u)" -eq 0 ]]; then
   err "Do not run this script as root or with sudo. Run as a normal user."
 fi
 
+# Ensure required tools for asdf plugin installation
+REQUIRED_PACKAGES=(unzip curl git)
+for pkg in "${REQUIRED_PACKAGES[@]}"; do
+    if ! command -v "$pkg" &>/dev/null; then
+        log "Installing missing dependency: $pkg"
+        sudo apt update
+        sudo apt install -y "$pkg"
+    fi
+done
+
+
 
 # ============================
 # Configuration
