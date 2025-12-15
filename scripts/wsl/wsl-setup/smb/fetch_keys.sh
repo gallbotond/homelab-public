@@ -40,7 +40,7 @@ fi
 [[ -z "$SMB_USER" ]] && [[ $NON_INTERACTIVE -eq 0 ]] && read -rp "SMB username: " SMB_USER
 # [[ -z "$SMB_PASS" ]] && [[ $NON_INTERACTIVE -eq 0 ]] && { printf "SMB password: "; stty -echo; read -r SMB_PASS; stty echo; printf "\n"; }
 
-# ✅ TTY-safe SMB password prompt
+# TTY-safe SMB password prompt
 if [[ $NON_INTERACTIVE -eq 0 && -z "$SMB_PASS" ]]; then
   if [[ -t 0 ]]; then
     printf "SMB password: "
@@ -55,6 +55,11 @@ if [[ $NON_INTERACTIVE -eq 0 && -z "$SMB_PASS" ]]; then
     stty echo < /dev/tty
     printf "\n" > /dev/tty
   fi
+fi
+
+# Non-interactive mode checks
+if [[ $NON_INTERACTIVE -eq 1 && -z "$SMB_PASS" ]]; then
+  err "SMB password must be provided in non-interactive mode"
 fi
 
 
