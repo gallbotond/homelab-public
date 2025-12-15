@@ -3,21 +3,20 @@ set -euo pipefail
 
 log() { printf "[asdf-plugins] %s\n" "$*"; }
 
-# Load asdf
-ASDF_PATH="$(brew --prefix asdf)/libexec/asdf.sh"
-if [[ -f "$ASDF_PATH" ]]; then
-  # shellcheck disable=SC1090
-  . "$ASDF_PATH"
-else
-  echo "asdf not found" && exit 1
-fi
+# Load asdf environment
+ASDF_DIR="$(brew --prefix asdf)/libexec"
+. "$ASDF_DIR/asdf.sh"
 
-for plugin in "$@"; do
-  log "Ensuring plugin $plugin exists..."
-  asdf plugin-add "$plugin" >/dev/null 2>&1 || true
-  log "Installing latest $plugin..."
-  latest=$(asdf list-all "$plugin" | awk 'NF' | tail -1)
-  asdf install "$plugin" "$latest"
-  asdf global "$plugin" "$latest"
-  log "$plugin $latest installed and set global."
+TOOLS=("terraform" "terragrunt")
+
+for tool in "${TOOLS[@]}"; do
+    log "Ensuring plugin $tool exists..."
+    asdf plugin-add "$tool" || true
+
+    log "Installing latest $tool..."
+    latest_version=$(asdf latest "$tool")
+    asdf install "$tool" "$latest_version"
+    asdf global "$tool" "$latest_version"
 done
+
+log "asdf plugins setup complete."

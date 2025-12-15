@@ -64,10 +64,11 @@ log "Ensuring Homebrew is in PATH for future shell sessions"
 grep -qxF 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' ~/.bashrc || \
     echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> ~/.bashrc
 
+log "Installing asdf and plugins..."
 fetch_and_run "installers/install_asdf.sh"
 fetch_and_run "installers/install_asdf_plugins.sh" terraform terragrunt
 
-
+log "Configuring ssh keys..."
 fetch_and_run "smb/fetch_keys.sh" "${ARGS[@]}"
 
 
