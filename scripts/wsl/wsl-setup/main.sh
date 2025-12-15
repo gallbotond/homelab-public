@@ -54,6 +54,13 @@ log "Starting WSL setup via remote scripts..."
 
 fetch_and_run "installers/install_zoxide.sh"
 fetch_and_run "installers/install_homebrew.sh"
+
+# Make brew immediately available
+eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+# Ensure persistent PATH for future shells
+grep -qxF 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' ~/.bashrc || \
+    echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> ~/.bashrc
+
 fetch_and_run "installers/install_asdf.sh"
 fetch_and_run "installers/install_asdf_plugins.sh" terraform terragrunt
 
