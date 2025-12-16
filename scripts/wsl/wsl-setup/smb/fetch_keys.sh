@@ -97,7 +97,13 @@ fi
 
 # --- List files in chosen path ---
 log "Listing files in '$SMB_PATH' ..."
-list=$(smbclient //"$SMB_SERVER"/"$SMB_SHARE" -U "${SMB_USER}%${SMB_PASS}" -c "ls $SMB_PATH" 2>/dev/null) || err "SMB listing failed"
+# list=$(smbclient //"$SMB_SERVER"/"$SMB_SHARE" -U "${SMB_USER}%${SMB_PASS}" -c "ls $SMB_PATH" 2>/dev/null) || err "SMB listing failed"
+# Default to root if empty
+[[ -z "$SMB_PATH" ]] && SMB_PATH="."
+
+# Quote path for smbclient
+list=$(smbclient //"$SMB_SERVER"/"$SMB_SHARE" -U "${SMB_USER}%${SMB_PASS}" -c "ls \"$SMB_PATH\"" 2>/dev/null) || err "SMB listing failed"
+
 
 files=($(echo "$list" | awk '/^[ ]+[A-Za-z0-9_.-]+/ {print $1}'))
 
