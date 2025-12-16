@@ -16,7 +16,6 @@ read_tty() {
   printf "%s" "$var"
 }
 
-
 # Default values
 SMB_SERVER=""
 SMB_SHARE=""
@@ -48,13 +47,10 @@ if ! command -v smbclient >/dev/null; then
   fi
 fi
 
-# [[ -z "$SMB_SERVER" ]] && [[ $NON_INTERACTIVE -eq 0 ]] && read -rp "SMB server: " SMB_SERVER
-# [[ -z "$SMB_SHARE" ]] && [[ $NON_INTERACTIVE -eq 0 ]] && read -rp "SMB share: " SMB_SHARE
-# [[ -z "$SMB_USER" ]] && [[ $NON_INTERACTIVE -eq 0 ]] && read -rp "SMB username: " SMB_USER
+# Prompt for required fields if not provided
 [[ -z "$SMB_SERVER" && $NON_INTERACTIVE -eq 0 ]] && SMB_SERVER="$(read_tty "SMB server: ")"
 [[ -z "$SMB_SHARE"  && $NON_INTERACTIVE -eq 0 ]] && SMB_SHARE="$(read_tty "SMB share: ")"
 [[ -z "$SMB_USER"   && $NON_INTERACTIVE -eq 0 ]] && SMB_USER="$(read_tty "SMB username: ")"
-# [[ -z "$SMB_PASS" ]] && [[ $NON_INTERACTIVE -eq 0 ]] && { printf "SMB password: "; stty -echo; read -r SMB_PASS; stty echo; printf "\n"; }
 
 # TTY-safe SMB password prompt
 if [[ $NON_INTERACTIVE -eq 0 && -z "$SMB_PASS" ]]; then
@@ -73,40 +69,57 @@ if [[ $NON_INTERACTIVE -eq 0 && -z "$SMB_PASS" ]]; then
   fi
 fi
 
-# Non-interactive mode checks
+# Non-interactive check
 if [[ $NON_INTERACTIVE -eq 1 && -z "$SMB_PASS" ]]; then
   err "SMB password must be provided in non-interactive mode"
 fi
 
+# Validate required variables
 for v in SMB_SERVER SMB_SHARE SMB_USER SMB_PASS; do
   if [[ -z "${!v}" ]]; then
     err "$v is required but not set"
   fi
 done
 
-log "Listing files on SMB share..."
+mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"
+
+# --- Interactive folder selection ---
+
+# List top-level directories/files in the share
+log "Listing top-level directories on //$SMB_SERVER/$SMB_SHARE ..."
+top_level=$(smbclient //"$SMB_SERVER"/"$SMB_SHARE" -U "${SMB_USER}%${SMB_PASS}" -c "ls" 2>/dev/null) || err "SMB listing failed"
+
+echo "$top_level" | awk '/^[ ]+[^ ]/ {print $1}'
+
+if [[ $NON_INTERACTIVE -eq 0 ]]; then
+  SMB_PATH="$(read_tty "Enter folder to fetch keys from (or leave empty for root): ")"
+fi
+
+# --- List files in chosen path ---
+log "Listing files in '$SMB_PATH' ..."
 list=$(smbclient //"$SMB_SERVER"/"$SMB_SHARE" -U "${SMB_USER}%${SMB_PASS}" -c "ls $SMB_PATH" 2>/dev/null) || err "SMB listing failed"
 
 files=($(echo "$list" | awk '/^[ ]+[A-Za-z0-9_.-]+/ {print $1}'))
 
-mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"
-
-# Determine which keys to fetch
+# Select which keys to copy
 selected=()
 if [[ -n "$KEYS_CSV" ]]; then
   IFS=',' read -ra selected <<< "$KEYS_CSV"
-else
+elif [[ $NON_INTERACTIVE -eq 0 ]]; then
   read -rp "Which keys to copy (comma-separated or 'all')? " pick
   if [[ "$pick" == "all" ]]; then
     selected=("${files[@]}")
   else
     IFS=',' read -ra selected <<< "$pick"
   fi
+else
+  selected=("${files[@]}")
 fi
 
+# Fetch the selected keys
 for key in "${selected[@]}"; do
   key_trim=$(echo "$key" | sed 's/^ *//;s/ *$//')
-  log "Fetching $key_trim..."
+  log "Fetching $key_trim ..."
   smbclient //"$SMB_SERVER"/"$SMB_SHARE" -U "${SMB_USER}%${SMB_PASS}" -c "cd $SMB_PATH; get $key_trim $HOME/.ssh/$key_trim" >/dev/null 2>&1 || log "Failed to fetch $key_trim"
   if [[ "$key_trim" =~ \.pub$ ]]; then chmod 644 "$HOME/.ssh/$key_trim"; else chmod 600 "$HOME/.ssh/$key_trim"; fi
 done
