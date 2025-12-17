@@ -17,10 +17,10 @@ read_tty() {
 }
 
 # Default values
-SMB_SERVER=""
-SMB_SHARE=""
+SMB_SERVER="192.168.1.100"
+SMB_SHARE="Secrets"
 SMB_PATH=""
-SMB_USER=""
+SMB_USER="secret"
 SMB_PASS=""
 KEYS_CSV=""
 NON_INTERACTIVE=0
