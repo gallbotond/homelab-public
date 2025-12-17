@@ -86,20 +86,58 @@ mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"
 
 # --- Interactive folder selection ---
 
-# List top-level directories/files in the share
 log "Listing top-level directories on //$SMB_SERVER/$SMB_SHARE ..."
-top_level=$(smbclient //"$SMB_SERVER"/"$SMB_SHARE" -U "${SMB_USER}%${SMB_PASS}" -c "ls" 2>/dev/null) || err "SMB listing failed"
 
-echo "$top_level" | awk '/^[ ]+[^ ]/ {print $1}'
+top_level_raw=$(smbclient //"$SMB_SERVER"/"$SMB_SHARE" \
+  -U "${SMB_USER}%${SMB_PASS}" \
+  -c "ls" 2>/dev/null) || err "SMB listing failed"
 
-if [[ $NON_INTERACTIVE -eq 0 ]]; then
-  SMB_PATH="$(read_tty "Enter folder to fetch keys from (or leave empty for root): ")"
+# Extract directory names safely (keep spaces)
+mapfile -t DIRS < <(
+  echo "$top_level_raw" |
+  awk '
+    /^[ ]+/ && $1 != "." && $1 != ".." {
+      sub(/^[ ]+/, "", $0)
+      sub(/[ ]+D.*$/, "", $0)
+      print
+    }'
+)
+
+if [[ ${#DIRS[@]} -eq 0 ]]; then
+  err "No directories found on SMB share"
 fi
 
-# Default to root if empty
-[[ -z "$SMB_PATH" ]] && SMB_PATH="."
+echo "Available folders:"
+for d in "${DIRS[@]}"; do
+  echo "  - $d"
+done
+
+# Prompt until valid folder is chosen
+if [[ $NON_INTERACTIVE -eq 0 ]]; then
+  while true; do
+    SMB_PATH="$(read_tty "Enter folder to fetch keys from (leave empty for root): ")"
+
+    # Empty = root
+    [[ -z "$SMB_PATH" ]] && SMB_PATH="." && break
+
+    for d in "${DIRS[@]}"; do
+      if [[ "$SMB_PATH" == "$d" ]]; then
+        break 2
+      fi
+    done
+
+    echo "[smb-error] Invalid folder name. Please choose one of:"
+    for d in "${DIRS[@]}"; do
+      echo "  - $d"
+    done
+  done
+else
+  [[ -z "$SMB_PATH" ]] && SMB_PATH="."
+fi
+
 
 # --- List files in chosen path ---
+
 log "Listing files in '$SMB_PATH' ..."
 # Quote folder path for smbclient to handle spaces
 list=$(smbclient //"$SMB_SERVER"/"$SMB_SHARE" -U "${SMB_USER}%${SMB_PASS}" -c "cd \"$SMB_PATH\"; ls" 2>/dev/null) || err "SMB listing failed"
