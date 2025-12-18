@@ -16,14 +16,38 @@ read_tty() {
   printf "%s" "$var"
 }
 
-# Default values
-SMB_SERVER="192.168.1.100"
-SMB_SHARE="Secrets"
-SMB_PATH=""
-SMB_USER="secret"
-SMB_PASS=""
-KEYS_CSV=""
-NON_INTERACTIVE=0
+# --- Load external configuration (optional) ---
+
+# Resolve script directory (works when script is on disk)
+SCRIPT_DIR=""
+if [[ -n "${BASH_SOURCE[0]:-}" && -f "${BASH_SOURCE[0]}" ]]; then
+  SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
+fi
+
+# Candidate config locations (in priority order)
+CONFIG_CANDIDATES=(
+  "${SMB_CONFIG_FILE:-}"                 # Explicit override
+  "$SCRIPT_DIR/smb.env"                  # Next to fetch_keys.sh
+  "$HOME/.config/wsl-setup/smb.env"      # User-level config
+)
+
+for cfg in "${CONFIG_CANDIDATES[@]}"; do
+  if [[ -n "$cfg" && -f "$cfg" ]]; then
+    # shellcheck source=/dev/null
+    source "$cfg"
+    log "Loaded SMB config from $cfg"
+    break
+  fi
+done
+
+SMB_SERVER="${SMB_SERVER:-}"
+SMB_SHARE="${SMB_SHARE:-}"
+SMB_PATH="${SMB_PATH:-}"
+SMB_USER="${SMB_USER:-}"
+SMB_PASS="${SMB_PASS:-}"
+KEYS_CSV="${KEYS_CSV:-}"
+NON_INTERACTIVE="${NON_INTERACTIVE:-0}"
+
 
 # Parse args
 while [[ $# -gt 0 ]]; do
