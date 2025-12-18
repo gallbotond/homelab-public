@@ -2,6 +2,7 @@
 set -euo pipefail
 
 log() { printf "[smb] %s\n" "$*"; }
+warn() { printf "[smb-warn] %s\n" "$*"; }
 err() { printf "[smb-error] %s\n" "$*"; exit 1; }
 
 read_tty() {
@@ -16,16 +17,20 @@ read_tty() {
   printf "%s" "$var"
 }
 
-# Default values
+# --------------------
+# Defaults
+# --------------------
 SMB_SERVER="192.168.1.100"
 SMB_SHARE="Secrets"
-SMB_PATH=""
 SMB_USER="secret"
 SMB_PASS=""
+SMB_PATH=""
 KEYS_CSV=""
 NON_INTERACTIVE=0
 
+# --------------------
 # Parse args
+# --------------------
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --smb-server) SMB_SERVER="$2"; shift 2;;
@@ -39,118 +44,113 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Install smbclient if not present
+# --------------------
+# Dependencies
+# --------------------
 if ! command -v smbclient >/dev/null; then
   log "Installing smbclient..."
-  if command -v apt >/dev/null; then sudo apt update -y && sudo apt install -y smbclient
-  elif command -v dnf >/dev/null; then sudo dnf install -y samba-client
-  fi
-fi
-
-# Prompt for required fields if not provided
-[[ -z "$SMB_SERVER" && $NON_INTERACTIVE -eq 0 ]] && SMB_SERVER="$(read_tty "SMB server: ")"
-[[ -z "$SMB_SHARE"  && $NON_INTERACTIVE -eq 0 ]] && SMB_SHARE="$(read_tty "SMB share: ")"
-[[ -z "$SMB_USER"   && $NON_INTERACTIVE -eq 0 ]] && SMB_USER="$(read_tty "SMB username: ")"
-
-# TTY-safe SMB password prompt
-if [[ $NON_INTERACTIVE -eq 0 && -z "$SMB_PASS" ]]; then
-  if [[ -t 0 ]]; then
-    printf "SMB password: "
-    stty -echo
-    read -r SMB_PASS
-    stty echo
-    printf "\n"
+  if command -v apt >/dev/null; then
+    sudo apt update -y && sudo apt install -y smbclient
+  elif command -v dnf >/dev/null; then
+    sudo dnf install -y samba-client
   else
-    printf "SMB password: " > /dev/tty
-    stty -echo < /dev/tty
-    read -r SMB_PASS < /dev/tty
-    stty echo < /dev/tty
-    printf "\n" > /dev/tty
+    err "No supported package manager found"
   fi
 fi
 
-# Non-interactive check
-if [[ $NON_INTERACTIVE -eq 1 && -z "$SMB_PASS" ]]; then
-  err "SMB password must be provided in non-interactive mode"
+# --------------------
+# Credentials
+# --------------------
+if [[ -z "$SMB_PASS" && $NON_INTERACTIVE -eq 0 ]]; then
+  printf "SMB password: "
+  stty -echo
+  read -r SMB_PASS
+  stty echo
+  printf "\n"
 fi
 
-# Validate required variables
-for v in SMB_SERVER SMB_SHARE SMB_USER SMB_PASS; do
-  if [[ -z "${!v}" ]]; then
-    err "$v is required but not set"
-  fi
-done
+[[ -z "$SMB_PASS" ]] && err "SMB password not provided"
 
-mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"
+log "Connecting to //$SMB_SERVER/$SMB_SHARE as $SMB_USER"
 
+mkdir -p "$HOME/.ssh"
+chmod 700 "$HOME/.ssh"
 
-# --- Interactive folder selection ---
+# --------------------
+# List directories
+# --------------------
+log "Listing available folders..."
 
-log "Listing top-level directories on //$SMB_SERVER/$SMB_SHARE ..."
-
-top_level_raw=$(smbclient //"$SMB_SERVER"/"$SMB_SHARE" \
+raw_ls=$(smbclient "//$SMB_SERVER/$SMB_SHARE" \
   -U "${SMB_USER}%${SMB_PASS}" \
   -c "ls" 2>/dev/null) || err "SMB listing failed"
 
-# Extract directory names safely (keep spaces)
-mapfile -t DIRS < <(
-  echo "$top_level_raw" |
-  awk '
-    /^[ ]+/ && $1 != "." && $1 != ".." {
-      sub(/^[ ]+/, "", $0)
-      sub(/[ ]+D.*$/, "", $0)
-      print
-    }'
+mapfile -t folders < <(
+  echo "$raw_ls" |
+  awk '$2 == "D" && $1 != "." && $1 != ".." { print substr($0, 1, index($0, "D") - 1) }' |
+  sed 's/[[:space:]]*$//'
 )
 
-if [[ ${#DIRS[@]} -eq 0 ]]; then
-  err "No directories found on SMB share"
-fi
+[[ ${#folders[@]} -eq 0 ]] && err "No folders found in share"
 
-echo "Available folders:"
-for d in "${DIRS[@]}"; do
-  echo "  - $d"
+log "Available folders:"
+for i in "${!folders[@]}"; do
+  printf "  [%d] %s\n" "$((i+1))" "${folders[$i]}"
 done
 
-# Prompt until valid folder is chosen
-if [[ $NON_INTERACTIVE -eq 0 ]]; then
+# --------------------
+# Folder selection
+# --------------------
+if [[ -z "$SMB_PATH" && $NON_INTERACTIVE -eq 0 ]]; then
   while true; do
-    SMB_PATH="$(read_tty "Enter folder to fetch keys from (leave empty for root): ")"
+    choice="$(read_tty "Select folder number (or empty for root): ")"
 
-    # Empty = root
-    [[ -z "$SMB_PATH" ]] && SMB_PATH="." && break
+    [[ -z "$choice" ]] && { SMB_PATH="."; break; }
 
-    for d in "${DIRS[@]}"; do
-      if [[ "$SMB_PATH" == "$d" ]]; then
-        break 2
-      fi
-    done
+    if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#folders[@]} )); then
+      SMB_PATH="${folders[$((choice-1))]}"
+      break
+    fi
 
-    echo "[smb-error] Invalid folder name. Please choose one of:"
-    for d in "${DIRS[@]}"; do
-      echo "  - $d"
-    done
+    warn "Invalid selection. Please enter a number between 1 and ${#folders[@]}"
   done
-else
-  [[ -z "$SMB_PATH" ]] && SMB_PATH="."
 fi
 
+log "Selected folder: '$SMB_PATH'"
 
-# --- List files in chosen path ---
+# --------------------
+# List files
+# --------------------
+log "Listing files in '$SMB_PATH'..."
 
-log "Listing files in '$SMB_PATH' ..."
-# Quote folder path for smbclient to handle spaces
-list=$(smbclient //"$SMB_SERVER"/"$SMB_SHARE" -U "${SMB_USER}%${SMB_PASS}" -c "cd \"$SMB_PATH\"; ls" 2>/dev/null) || err "SMB listing failed"
+raw_files=$(smbclient "//$SMB_SERVER/$SMB_SHARE" \
+  -U "${SMB_USER}%${SMB_PASS}" \
+  -c "cd $SMB_PATH; ls" 2>/dev/null) || err "Failed to list files"
 
-# Parse files (allow spaces)
-mapfile -t files < <(echo "$list" | awk '/^[ ]+[A-Za-z0-9_.-]+/ {for(i=1;i<=NF;i++){if($i ~ /^[A-Za-z0-9_.-]+$/){print $i}}} ')
+mapfile -t files < <(
+  echo "$raw_files" |
+  awk '$2 != "D" && $1 != "." && $1 != ".." { print substr($0, 1, index($0, $2) - 1) }' |
+  sed 's/[[:space:]]*$//'
+)
 
-# Select which keys to copy
+if [[ ${#files[@]} -eq 0 ]]; then
+  warn "No files found in '$SMB_PATH'"
+  exit 0
+fi
+
+log "Files found:"
+for f in "${files[@]}"; do
+  printf "  - %s\n" "$f"
+done
+
+# --------------------
+# Select files
+# --------------------
 selected=()
 if [[ -n "$KEYS_CSV" ]]; then
   IFS=',' read -ra selected <<< "$KEYS_CSV"
 elif [[ $NON_INTERACTIVE -eq 0 ]]; then
-  read -rp "Which keys to copy (comma-separated or 'all')? " pick
+  read -rp "Which files to copy (comma-separated or 'all')? " pick
   if [[ "$pick" == "all" ]]; then
     selected=("${files[@]}")
   else
@@ -160,13 +160,29 @@ else
   selected=("${files[@]}")
 fi
 
-# Fetch the selected keys
+# --------------------
+# Copy files
+# --------------------
 for key in "${selected[@]}"; do
-  key_trim=$(echo "$key" | sed 's/^ *//;s/ *$//')
-  log "Fetching '$key_trim' ..."
-  smbclient //"$SMB_SERVER"/"$SMB_SHARE" -U "${SMB_USER}%${SMB_PASS}" -c "cd \"$SMB_PATH\"; get \"$key_trim\" \"$HOME/.ssh/$key_trim\"" >/dev/null 2>&1 || log "Failed to fetch $key_trim"
-  if [[ "$key_trim" =~ \.pub$ ]]; then chmod 644 "$HOME/.ssh/$key_trim"; else chmod 600 "$HOME/.ssh/$key_trim"; fi
+  key="$(echo "$key" | xargs)"
+
+  src="//$SMB_SERVER/$SMB_SHARE/$SMB_PATH/$key"
+  dst="$HOME/.ssh/$key"
+
+  log "Copying:"
+  log "  FROM: $src"
+  log "  TO:   $dst"
+
+  smbclient "//$SMB_SERVER/$SMB_SHARE" \
+    -U "${SMB_USER}%${SMB_PASS}" \
+    -c "cd $SMB_PATH; get $key $dst" >/dev/null \
+    || warn "Failed to copy $key"
+
+  if [[ "$key" =~ \.pub$ ]]; then
+    chmod 644 "$dst"
+  else
+    chmod 600 "$dst"
+  fi
 done
 
-
-log "Finished fetching keys."
+log "SSH key fetch complete."
