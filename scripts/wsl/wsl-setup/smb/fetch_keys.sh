@@ -94,23 +94,15 @@ raw_ls=$(smbclient "//$SMB_SERVER/$SMB_SHARE" \
 
 # mapfile -t folders < <(
 #   echo "$raw_ls" |
-#   awk '
-#     /^[[:space:]]*\./ { next }
-#     /[[:space:]]D[[:space:]]/ {
-#       name = substr($0, 1, index($0, " D") - 1)
-#       gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
-#       print name
-#     }
-#   '
+#   awk '$2 == "D" && $1 != "." && $1 != ".." { print substr($0, 1, index($0, "D") - 1) }' |
+#   sed 's/[[:space:]]*$//'
 # )
-mapfile -t files < <(
-  echo "$raw_files" |
+mapfile -t folders < <(
+  echo "$raw_ls" |
   awk '
-    /^[[:space:]]*\./ { next }          # skip . and ..
-    !/[[:space:]]D[[:space:]]/ {        # lines that are NOT directories
-      # grab everything before the first multiple spaces + size/date
-      name = $0
-      sub(/[[:space:]]{2,}[^[:space:]]+$/, "", name)
+    /^[[:space:]]*\./ { next }
+    /[[:space:]]D[[:space:]]/ {
+      name = substr($0, 1, index($0, " D") - 1)
       gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
       print name
     }
@@ -168,12 +160,25 @@ raw_files=$(smbclient "//$SMB_SERVER/$SMB_SHARE" \
 #   awk '$2 != "D" && $1 != "." && $1 != ".." { print substr($0, 1, index($0, $2) - 1) }' |
 #   sed 's/[[:space:]]*$//'
 # )
+# mapfile -t files < <(
+#   echo "$raw_files" |
+#   awk '
+#     /^[[:space:]]*\./ { next }
+#     !/[[:space:]]D[[:space:]]/ {
+#       name = substr($0, 1, index($0, "  ") - 1)
+#       gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
+#       print name
+#     }
+#   '
+# )
 mapfile -t files < <(
   echo "$raw_files" |
   awk '
-    /^[[:space:]]*\./ { next }
-    !/[[:space:]]D[[:space:]]/ {
-      name = substr($0, 1, index($0, "  ") - 1)
+    /^[[:space:]]*\./ { next }          # skip . and ..
+    !/[[:space:]]D[[:space:]]/ {        # lines that are NOT directories
+      # grab everything before the first multiple spaces + size/date
+      name = $0
+      sub(/[[:space:]]{2,}[^[:space:]]+$/, "", name)
       gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
       print name
     }
