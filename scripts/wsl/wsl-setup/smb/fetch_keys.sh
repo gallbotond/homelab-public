@@ -149,13 +149,14 @@ log "Listing files in '$SMB_PATH'..."
 # raw_files=$(smbclient "//$SMB_SERVER/$SMB_SHARE" \
 #   -U "${SMB_USER}%${SMB_PASS}" \
 #   -c "cd $SMB_PATH; ls" 2>/dev/null) || err "Failed to list files"
-# raw_files=$(smbclient "//$SMB_SERVER/$SMB_SHARE" \
-#   -U "${SMB_USER}%${SMB_PASS}" \
-#   -c "cd \"$SMB_PATH\"; ls" 2>/dev/null) || err "Failed to list files"
-ESCAPED_PATH=$(escape_smb_path "$SMB_PATH")
 raw_files=$(smbclient "//$SMB_SERVER/$SMB_SHARE" \
   -U "${SMB_USER}%${SMB_PASS}" \
-  -c "cd $ESCAPED_PATH; ls" 2>/dev/null) || err "Failed to list files"
+  -c "cd \"$SMB_PATH\"; ls" 2>/dev/null) || err "Failed to list files"
+
+# ESCAPED_PATH=$(escape_smb_path "$SMB_PATH")
+# raw_files=$(smbclient "//$SMB_SERVER/$SMB_SHARE" \
+#   -U "${SMB_USER}%${SMB_PASS}" \
+#   -c "cd $ESCAPED_PATH; ls" 2>/dev/null) || err "Failed to list files"
 
 
 
@@ -175,12 +176,25 @@ raw_files=$(smbclient "//$SMB_SERVER/$SMB_SHARE" \
 #     }
 #   '
 # )
+# mapfile -t files < <(
+#   echo "$raw_files" |
+#   awk '
+#     /^[[:space:]]*\./ { next }          # skip . and ..
+#     !/[[:space:]]D[[:space:]]/ {        # lines that are NOT directories
+#       # grab everything before the first multiple spaces + size/date
+#       name = $0
+#       sub(/[[:space:]]{2,}[^[:space:]]+$/, "", name)
+#       gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
+#       print name
+#     }
+#   '
+# )
 mapfile -t files < <(
   echo "$raw_files" |
   awk '
-    /^[[:space:]]*\./ { next }          # skip . and ..
-    !/[[:space:]]D[[:space:]]/ {        # lines that are NOT directories
-      # grab everything before the first multiple spaces + size/date
+    /^[[:space:]]*\./ { next }             # skip . and ..
+    !/[[:space:]]D[[:space:]]/ {           # skip directories
+      # remove trailing spaces and other columns (size/date)
       name = $0
       sub(/[[:space:]]{2,}[^[:space:]]+$/, "", name)
       gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
@@ -188,6 +202,7 @@ mapfile -t files < <(
     }
   '
 )
+
 
 
 if [[ ${#files[@]} -eq 0 ]]; then
@@ -243,11 +258,16 @@ for key in "${selected[@]}"; do
   # -U "${SMB_USER}%${SMB_PASS}" \
   # -c "cd \"$SMB_PATH\"; get \"$key\" \"$dst\"" >/dev/null \
   # || warn "Failed to copy $key"
-  ESCAPED_KEY=$(escape_smb_path "$key")
+  # ESCAPED_KEY=$(escape_smb_path "$key")
+  # smbclient "//$SMB_SERVER/$SMB_SHARE" \
+  #   -U "${SMB_USER}%${SMB_PASS}" \
+  #   -c "cd $ESCAPED_PATH; get $ESCAPED_KEY \"$dst\"" >/dev/null \
+  #   || warn "Failed to copy $key"
   smbclient "//$SMB_SERVER/$SMB_SHARE" \
     -U "${SMB_USER}%${SMB_PASS}" \
-    -c "cd $ESCAPED_PATH; get $ESCAPED_KEY \"$dst\"" >/dev/null \
+    -c "cd \"$SMB_PATH\"; get \"$key\" \"$dst\"" >/dev/null \
     || warn "Failed to copy $key"
+
 
 
   if [[ "$key" =~ \.pub$ ]]; then
