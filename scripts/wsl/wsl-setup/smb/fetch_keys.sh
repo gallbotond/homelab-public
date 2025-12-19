@@ -17,6 +17,13 @@ read_tty() {
   printf "%s" "$var"
 }
 
+escape_smb_path() {
+  local path="$1"
+  # Escape spaces for smbclient
+  echo "${path// /\\ }"
+}
+
+
 # --------------------
 # Defaults
 # --------------------
@@ -138,9 +145,14 @@ log "Listing files in '$SMB_PATH'..."
 # raw_files=$(smbclient "//$SMB_SERVER/$SMB_SHARE" \
 #   -U "${SMB_USER}%${SMB_PASS}" \
 #   -c "cd $SMB_PATH; ls" 2>/dev/null) || err "Failed to list files"
+# raw_files=$(smbclient "//$SMB_SERVER/$SMB_SHARE" \
+#   -U "${SMB_USER}%${SMB_PASS}" \
+#   -c "cd \"$SMB_PATH\"; ls" 2>/dev/null) || err "Failed to list files"
+ESCAPED_PATH=$(escape_smb_path "$SMB_PATH")
 raw_files=$(smbclient "//$SMB_SERVER/$SMB_SHARE" \
   -U "${SMB_USER}%${SMB_PASS}" \
-  -c "cd \"$SMB_PATH\"; ls" 2>/dev/null) || err "Failed to list files"
+  -c "cd $ESCAPED_PATH; ls" 2>/dev/null) || err "Failed to list files"
+
 
 
 # mapfile -t files < <(
@@ -205,10 +217,15 @@ for key in "${selected[@]}"; do
   #   -U "${SMB_USER}%${SMB_PASS}" \
   #   -c "cd $SMB_PATH; get $key $dst" >/dev/null \
   #   || warn "Failed to copy $key"
+  # smbclient "//$SMB_SERVER/$SMB_SHARE" \
+  # -U "${SMB_USER}%${SMB_PASS}" \
+  # -c "cd \"$SMB_PATH\"; get \"$key\" \"$dst\"" >/dev/null \
+  # || warn "Failed to copy $key"
+  ESCAPED_KEY=$(escape_smb_path "$key")
   smbclient "//$SMB_SERVER/$SMB_SHARE" \
-  -U "${SMB_USER}%${SMB_PASS}" \
-  -c "cd \"$SMB_PATH\"; get \"$key\" \"$dst\"" >/dev/null \
-  || warn "Failed to copy $key"
+    -U "${SMB_USER}%${SMB_PASS}" \
+    -c "cd $ESCAPED_PATH; get $ESCAPED_KEY \"$dst\"" >/dev/null \
+    || warn "Failed to copy $key"
 
 
   if [[ "$key" =~ \.pub$ ]]; then
