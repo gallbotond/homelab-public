@@ -135,15 +135,31 @@ log "Selected folder: '$SMB_PATH'"
 # --------------------
 log "Listing files in '$SMB_PATH'..."
 
+# raw_files=$(smbclient "//$SMB_SERVER/$SMB_SHARE" \
+#   -U "${SMB_USER}%${SMB_PASS}" \
+#   -c "cd $SMB_PATH; ls" 2>/dev/null) || err "Failed to list files"
 raw_files=$(smbclient "//$SMB_SERVER/$SMB_SHARE" \
   -U "${SMB_USER}%${SMB_PASS}" \
-  -c "cd $SMB_PATH; ls" 2>/dev/null) || err "Failed to list files"
+  -c "cd \"$SMB_PATH\"; ls" 2>/dev/null) || err "Failed to list files"
 
+
+# mapfile -t files < <(
+#   echo "$raw_files" |
+#   awk '$2 != "D" && $1 != "." && $1 != ".." { print substr($0, 1, index($0, $2) - 1) }' |
+#   sed 's/[[:space:]]*$//'
+# )
 mapfile -t files < <(
   echo "$raw_files" |
-  awk '$2 != "D" && $1 != "." && $1 != ".." { print substr($0, 1, index($0, $2) - 1) }' |
-  sed 's/[[:space:]]*$//'
+  awk '
+    /^[[:space:]]*\./ { next }
+    !/[[:space:]]D[[:space:]]/ {
+      name = substr($0, 1, index($0, "  ") - 1)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
+      print name
+    }
+  '
 )
+
 
 if [[ ${#files[@]} -eq 0 ]]; then
   warn "No files found in '$SMB_PATH'"
@@ -185,10 +201,15 @@ for key in "${selected[@]}"; do
   log "  FROM: $src"
   log "  TO:   $dst"
 
+  # smbclient "//$SMB_SERVER/$SMB_SHARE" \
+  #   -U "${SMB_USER}%${SMB_PASS}" \
+  #   -c "cd $SMB_PATH; get $key $dst" >/dev/null \
+  #   || warn "Failed to copy $key"
   smbclient "//$SMB_SERVER/$SMB_SHARE" \
-    -U "${SMB_USER}%${SMB_PASS}" \
-    -c "cd $SMB_PATH; get $key $dst" >/dev/null \
-    || warn "Failed to copy $key"
+  -U "${SMB_USER}%${SMB_PASS}" \
+  -c "cd \"$SMB_PATH\"; get \"$key\" \"$dst\"" >/dev/null \
+  || warn "Failed to copy $key"
+
 
   if [[ "$key" =~ \.pub$ ]]; then
     chmod 644 "$dst"
