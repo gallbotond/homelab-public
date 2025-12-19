@@ -131,18 +131,17 @@ log "Selected folder: '$SMB_PATH'"
 # --------------------
 # List files
 # --------------------
+# List files in the selected folder
 log "Listing files in '$SMB_PATH'..."
-
-# Quote folder name for smbclient
-raw_files=$(smbclient "//$SMB_SERVER/$SMB_SHARE" \
+raw_files=$(smbclient "//$SMB_SERVER/$SMB_SHARE/$SMB_PATH" \
   -U "${SMB_USER}%${SMB_PASS}" \
-  -c "cd \"$SMB_PATH\"; ls" 2>/dev/null) || err "Failed to list files"
+  -c "ls" 2>/dev/null) || err "Failed to list files"
 
 mapfile -t files < <(
   echo "$raw_files" |
   awk '
-    /^[[:space:]]*\./ { next }          # skip . and ..
-    !/[[:space:]]D[[:space:]]/ {        # skip directories
+    /^[[:space:]]*\./ { next }             # skip . and ..
+    !/[[:space:]]D[[:space:]]/ {           # skip directories
       name = $0
       sub(/[[:space:]]{2,}[^[:space:]]+$/, "", name)
       gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
@@ -185,12 +184,10 @@ for key in "${selected[@]}"; do
   key="$(echo "$key" | xargs)"
   dst="$HOME/.ssh/$key"
 
-  log "Copying:"
-  log "  TO:   $dst"
-
-  smbclient "//$SMB_SERVER/$SMB_SHARE" \
+  log "Copying $key..."
+  smbclient "//$SMB_SERVER/$SMB_SHARE/$SMB_PATH" \
     -U "${SMB_USER}%${SMB_PASS}" \
-    -c "cd \"$SMB_PATH\"; get \"$key\" \"$dst\"" >/dev/null \
+    -c "get \"$key\" \"$dst\"" >/dev/null \
     || warn "Failed to copy $key"
 
   if [[ "$key" =~ \.pub$ ]]; then
