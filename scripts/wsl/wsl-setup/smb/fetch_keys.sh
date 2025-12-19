@@ -85,11 +85,23 @@ raw_ls=$(smbclient "//$SMB_SERVER/$SMB_SHARE" \
   -U "${SMB_USER}%${SMB_PASS}" \
   -c "ls" 2>/dev/null) || err "SMB listing failed"
 
+# mapfile -t folders < <(
+#   echo "$raw_ls" |
+#   awk '$2 == "D" && $1 != "." && $1 != ".." { print substr($0, 1, index($0, "D") - 1) }' |
+#   sed 's/[[:space:]]*$//'
+# )
 mapfile -t folders < <(
   echo "$raw_ls" |
-  awk '$2 == "D" && $1 != "." && $1 != ".." { print substr($0, 1, index($0, "D") - 1) }' |
-  sed 's/[[:space:]]*$//'
+  awk '
+    /^[[:space:]]*\./ { next }          # skip . and ..
+    /[[:space:]]D[[:space:]]/ {
+      name = substr($0, 1, index($0, " D") - 1)
+      sub(/[[:space:]]+$/, "", name)
+      print name
+    }
+  '
 )
+
 
 [[ ${#folders[@]} -eq 0 ]] && err "No folders found in share"
 
