@@ -79,7 +79,7 @@ chmod 700 "$HOME/.ssh"
 # --------------------
 # List directories
 # --------------------
-log "Listing available folders..."
+log "Listing available folders (advanced)..."
 
 raw_ls=$(smbclient "//$SMB_SERVER/$SMB_SHARE" \
   -U "${SMB_USER}%${SMB_PASS}" \
