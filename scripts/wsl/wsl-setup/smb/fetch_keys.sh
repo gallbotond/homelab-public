@@ -93,10 +93,10 @@ raw_ls=$(smbclient "//$SMB_SERVER/$SMB_SHARE" \
 mapfile -t folders < <(
   echo "$raw_ls" |
   awk '
-    /^[[:space:]]*\./ { next }          # skip . and ..
+    /^[[:space:]]*\./ { next }
     /[[:space:]]D[[:space:]]/ {
       name = substr($0, 1, index($0, " D") - 1)
-      sub(/[[:space:]]+$/, "", name)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
       print name
     }
   '
