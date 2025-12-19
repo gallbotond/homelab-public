@@ -21,13 +21,6 @@ read_tty() {
   printf "%s" "$var"
 }
 
-escape_smb_path() {
-  local path="$1"
-  # Escape spaces for smbclient
-  echo "${path// /\\ }"
-}
-
-
 # --------------------
 # Defaults
 # --------------------
@@ -90,21 +83,16 @@ chmod 700 "$HOME/.ssh"
 # --------------------
 # List directories
 # --------------------
-log "Listing available folders (advanced)..."
+log "Listing available folders..."
 
 raw_ls=$(smbclient "//$SMB_SERVER/$SMB_SHARE" \
   -U "${SMB_USER}%${SMB_PASS}" \
   -c "ls" 2>/dev/null) || err "SMB listing failed"
 
-# mapfile -t folders < <(
-#   echo "$raw_ls" |
-#   awk '$2 == "D" && $1 != "." && $1 != ".." { print substr($0, 1, index($0, "D") - 1) }' |
-#   sed 's/[[:space:]]*$//'
-# )
 mapfile -t folders < <(
   echo "$raw_ls" |
   awk '
-    /^[[:space:]]*\./ { next }
+    /^[[:space:]]*\./ { next }          # skip . and ..
     /[[:space:]]D[[:space:]]/ {
       name = substr($0, 1, index($0, " D") - 1)
       gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
@@ -112,7 +100,6 @@ mapfile -t folders < <(
     }
   '
 )
-
 
 [[ ${#folders[@]} -eq 0 ]] && err "No folders found in share"
 
@@ -146,55 +133,16 @@ log "Selected folder: '$SMB_PATH'"
 # --------------------
 log "Listing files in '$SMB_PATH'..."
 
-# raw_files=$(smbclient "//$SMB_SERVER/$SMB_SHARE" \
-#   -U "${SMB_USER}%${SMB_PASS}" \
-#   -c "cd $SMB_PATH; ls" 2>/dev/null) || err "Failed to list files"
+# Quote folder name for smbclient
 raw_files=$(smbclient "//$SMB_SERVER/$SMB_SHARE" \
   -U "${SMB_USER}%${SMB_PASS}" \
   -c "cd \"$SMB_PATH\"; ls" 2>/dev/null) || err "Failed to list files"
 
-# ESCAPED_PATH=$(escape_smb_path "$SMB_PATH")
-# raw_files=$(smbclient "//$SMB_SERVER/$SMB_SHARE" \
-#   -U "${SMB_USER}%${SMB_PASS}" \
-#   -c "cd $ESCAPED_PATH; ls" 2>/dev/null) || err "Failed to list files"
-
-
-
-# mapfile -t files < <(
-#   echo "$raw_files" |
-#   awk '$2 != "D" && $1 != "." && $1 != ".." { print substr($0, 1, index($0, $2) - 1) }' |
-#   sed 's/[[:space:]]*$//'
-# )
-# mapfile -t files < <(
-#   echo "$raw_files" |
-#   awk '
-#     /^[[:space:]]*\./ { next }
-#     !/[[:space:]]D[[:space:]]/ {
-#       name = substr($0, 1, index($0, "  ") - 1)
-#       gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
-#       print name
-#     }
-#   '
-# )
-# mapfile -t files < <(
-#   echo "$raw_files" |
-#   awk '
-#     /^[[:space:]]*\./ { next }          # skip . and ..
-#     !/[[:space:]]D[[:space:]]/ {        # lines that are NOT directories
-#       # grab everything before the first multiple spaces + size/date
-#       name = $0
-#       sub(/[[:space:]]{2,}[^[:space:]]+$/, "", name)
-#       gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
-#       print name
-#     }
-#   '
-# )
 mapfile -t files < <(
   echo "$raw_files" |
   awk '
-    /^[[:space:]]*\./ { next }             # skip . and ..
-    !/[[:space:]]D[[:space:]]/ {           # skip directories
-      # remove trailing spaces and other columns (size/date)
+    /^[[:space:]]*\./ { next }          # skip . and ..
+    !/[[:space:]]D[[:space:]]/ {        # skip directories
       name = $0
       sub(/[[:space:]]{2,}[^[:space:]]+$/, "", name)
       gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
@@ -202,8 +150,6 @@ mapfile -t files < <(
     }
   '
 )
-
-
 
 if [[ ${#files[@]} -eq 0 ]]; then
   warn "No files found in '$SMB_PATH'"
@@ -232,43 +178,20 @@ else
   selected=("${files[@]}")
 fi
 
-log "Files parsed:"
-for f in "${files[@]}"; do
-  printf "  -> '%s'\n" "$f"
-done
-
 # --------------------
 # Copy files
 # --------------------
 for key in "${selected[@]}"; do
   key="$(echo "$key" | xargs)"
-
-  src="//$SMB_SERVER/$SMB_SHARE/$SMB_PATH/$key"
   dst="$HOME/.ssh/$key"
 
   log "Copying:"
-  log "  FROM: $src"
   log "  TO:   $dst"
 
-  # smbclient "//$SMB_SERVER/$SMB_SHARE" \
-  #   -U "${SMB_USER}%${SMB_PASS}" \
-  #   -c "cd $SMB_PATH; get $key $dst" >/dev/null \
-  #   || warn "Failed to copy $key"
-  # smbclient "//$SMB_SERVER/$SMB_SHARE" \
-  # -U "${SMB_USER}%${SMB_PASS}" \
-  # -c "cd \"$SMB_PATH\"; get \"$key\" \"$dst\"" >/dev/null \
-  # || warn "Failed to copy $key"
-  # ESCAPED_KEY=$(escape_smb_path "$key")
-  # smbclient "//$SMB_SERVER/$SMB_SHARE" \
-  #   -U "${SMB_USER}%${SMB_PASS}" \
-  #   -c "cd $ESCAPED_PATH; get $ESCAPED_KEY \"$dst\"" >/dev/null \
-  #   || warn "Failed to copy $key"
   smbclient "//$SMB_SERVER/$SMB_SHARE" \
     -U "${SMB_USER}%${SMB_PASS}" \
     -c "cd \"$SMB_PATH\"; get \"$key\" \"$dst\"" >/dev/null \
     || warn "Failed to copy $key"
-
-
 
   if [[ "$key" =~ \.pub$ ]]; then
     chmod 644 "$dst"
