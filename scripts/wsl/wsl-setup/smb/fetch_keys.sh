@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-folders=()
-files=()
-raw_files=""
-
 log() { printf "[smb] %s\n" "$*"; }
 warn() { printf "[smb-warn] %s\n" "$*"; }
 err() { printf "[smb-error] %s\n" "$*"; exit 1; }
@@ -29,7 +25,6 @@ SMB_SHARE="Secrets"
 SMB_USER="secret"
 SMB_PASS=""
 SMB_PATH=""
-KEYS_CSV=""
 NON_INTERACTIVE=0
 
 # --------------------
@@ -42,25 +37,10 @@ while [[ $# -gt 0 ]]; do
     --share-path) SMB_PATH="$2"; shift 2;;
     --smb-user) SMB_USER="$2"; shift 2;;
     --smb-pass) SMB_PASS="$2"; shift 2;;
-    --keys) KEYS_CSV="$2"; shift 2;;
     --non-interactive) NON_INTERACTIVE=1; shift;;
     *) shift;;
   esac
 done
-
-# --------------------
-# Dependencies
-# --------------------
-if ! command -v smbclient >/dev/null; then
-  log "Installing smbclient..."
-  if command -v apt >/dev/null; then
-    sudo apt update -y && sudo apt install -y smbclient
-  elif command -v dnf >/dev/null; then
-    sudo dnf install -y samba-client
-  else
-    err "No supported package manager found"
-  fi
-fi
 
 # --------------------
 # Credentials
@@ -72,7 +52,6 @@ if [[ -z "$SMB_PASS" && $NON_INTERACTIVE -eq 0 ]]; then
   stty echo
   printf "\n"
 fi
-
 [[ -z "$SMB_PASS" ]] && err "SMB password not provided"
 
 log "Connecting to //$SMB_SERVER/$SMB_SHARE as $SMB_USER"
@@ -81,120 +60,24 @@ mkdir -p "$HOME/.ssh"
 chmod 700 "$HOME/.ssh"
 
 # --------------------
-# List directories
-# --------------------
-log "Listing available folders..."
-
-raw_ls=$(smbclient "//$SMB_SERVER/$SMB_SHARE" \
-  -U "${SMB_USER}%${SMB_PASS}" \
-  -c "ls" 2>/dev/null) || err "SMB listing failed"
-
-mapfile -t folders < <(
-  echo "$raw_ls" |
-  awk '
-    /^[[:space:]]*\./ { next }          # skip . and ..
-    /[[:space:]]D[[:space:]]/ {
-      name = substr($0, 1, index($0, " D") - 1)
-      gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
-      print name
-    }
-  '
-)
-
-[[ ${#folders[@]} -eq 0 ]] && err "No folders found in share"
-
-log "Available folders:"
-for i in "${!folders[@]}"; do
-  printf "  [%d] %s\n" "$((i+1))" "${folders[$i]}"
-done
-
-# --------------------
-# Folder selection
+# Set target folder
 # --------------------
 if [[ -z "$SMB_PATH" && $NON_INTERACTIVE -eq 0 ]]; then
-  while true; do
-    choice="$(read_tty "Select folder number (or empty for root): ")"
-
-    [[ -z "$choice" ]] && { SMB_PATH="."; break; }
-
-    if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#folders[@]} )); then
-      SMB_PATH="${folders[$((choice-1))]}"
-      break
-    fi
-
-    warn "Invalid selection. Please enter a number between 1 and ${#folders[@]}"
-  done
+  SMB_PATH="."  # default to root
 fi
 
 log "Selected folder: '$SMB_PATH'"
 
 # --------------------
-# List files
+# Recursive fetch
 # --------------------
-# List files in the selected folder
-log "Listing files in '$SMB_PATH'..."
-raw_files=$(smbclient "//$SMB_SERVER/$SMB_SHARE/$SMB_PATH" \
-  -U "${SMB_USER}%${SMB_PASS}" \
-  -c "ls" 2>/dev/null) || err "Failed to list files"
+log "Fetching all files recursively from '$SMB_PATH'..."
 
-mapfile -t files < <(
-  echo "$raw_files" |
-  awk '
-    /^[[:space:]]*\./ { next }             # skip . and ..
-    !/[[:space:]]D[[:space:]]/ {           # skip directories
-      name = $0
-      sub(/[[:space:]]{2,}[^[:space:]]+$/, "", name)
-      gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
-      print name
-    }
-  '
-)
+# Use smbclient recursive mget
+smbclient "//$SMB_SERVER/$SMB_SHARE" -U "${SMB_USER}%${SMB_PASS}" -c "cd \"$SMB_PATH\"; recurse; prompt; mget *" >/dev/null || err "Failed to fetch files"
 
-if [[ ${#files[@]} -eq 0 ]]; then
-  warn "No files found in '$SMB_PATH'"
-  exit 0
-fi
-
-log "Files found:"
-for f in "${files[@]}"; do
-  printf "  - %s\n" "$f"
-done
-
-# --------------------
-# Select files
-# --------------------
-selected=()
-if [[ -n "$KEYS_CSV" ]]; then
-  IFS=',' read -ra selected <<< "$KEYS_CSV"
-elif [[ $NON_INTERACTIVE -eq 0 ]]; then
-  read -rp "Which files to copy (comma-separated or 'all')? " pick
-  if [[ "$pick" == "all" ]]; then
-    selected=("${files[@]}")
-  else
-    IFS=',' read -ra selected <<< "$pick"
-  fi
-else
-  selected=("${files[@]}")
-fi
-
-# --------------------
-# Copy files
-# --------------------
-for key in "${selected[@]}"; do
-  key="$(echo "$key" | xargs)"
-  dst="$HOME/.ssh/$key"
-
-  log "Copying $key..."
-  smbclient "//$SMB_SERVER/$SMB_SHARE/$SMB_PATH" \
-    -U "${SMB_USER}%${SMB_PASS}" \
-    -c "get \"$key\" \"$dst\"" >/dev/null \
-    || warn "Failed to copy $key"
-
-  if [[ "$key" =~ \.pub$ ]]; then
-    chmod 644 "$dst"
-  else
-    chmod 600 "$dst"
-  fi
-done
+# Set permissions correctly
+find "$HOME/.ssh" -type f -name "*.pub" -exec chmod 644 {} \;
+find "$HOME/.ssh" -type f ! -name "*.pub" -exec chmod 600 {} \;
 
 log "SSH key fetch complete."
