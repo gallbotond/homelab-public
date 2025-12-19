@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+folders=()
+files=()
+raw_files=""
+
 log() { printf "[smb] %s\n" "$*"; }
 warn() { printf "[smb-warn] %s\n" "$*"; }
 err() { printf "[smb-error] %s\n" "$*"; exit 1; }
