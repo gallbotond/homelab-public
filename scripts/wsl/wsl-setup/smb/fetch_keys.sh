@@ -69,15 +69,30 @@ fi
 log "Selected folder: '$SMB_PATH'"
 
 # --------------------
-# Recursive fetch
+# Recursive fetch of SSH keys only
 # --------------------
-log "Fetching all files recursively from '$SMB_PATH'..."
+log "Fetching all SSH key files recursively from '$SMB_PATH' into ~/.ssh ..."
 
 # Use smbclient recursive mget
-smbclient "//$SMB_SERVER/$SMB_SHARE" -U "${SMB_USER}%${SMB_PASS}" -c "cd \"$SMB_PATH\"; recurse; prompt; mget *" >/dev/null || err "Failed to fetch files"
+tmp_dir=$(mktemp -d)
+smbclient "//$SMB_SERVER/$SMB_SHARE" \
+  -U "${SMB_USER}%${SMB_PASS}" \
+  -c "cd \"$SMB_PATH\"; recurse; prompt; mget *" \
+  -D "$tmp_dir" >/dev/null || err "Failed to fetch files"
 
-# Set permissions correctly
-find "$HOME/.ssh" -type f -name "*.pub" -exec chmod 644 {} \;
-find "$HOME/.ssh" -type f ! -name "*.pub" -exec chmod 600 {} \;
+# Move only key files into ~/.ssh and flatten structure
+find "$tmp_dir" -type f \( -name "*.pub" -o -name "id_*" -o -name "id_*_*" \) | while read -r f; do
+  dst="$HOME/.ssh/$(basename "$f")"
+  mv "$f" "$dst"
+  if [[ "$dst" =~ \.pub$ ]]; then
+    chmod 644 "$dst"
+  else
+    chmod 600 "$dst"
+  fi
+  log "Copied $(basename "$f") to ~/.ssh"
+done
+
+# Clean up temporary directory
+rm -rf "$tmp_dir"
 
 log "SSH key fetch complete."
