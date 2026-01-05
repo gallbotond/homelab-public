@@ -17,7 +17,7 @@ SMB_SERVER="192.168.1.100"
 SMB_SHARE="Secrets"
 SMB_PATH="SSH keys/gallbotond.local"
 
-SMB_USER=""
+SMB_USER="secret"
 SMB_PASS=""
 NON_INTERACTIVE=0
 
@@ -50,22 +50,22 @@ done
 
 if [[ -z "$SMB_PASS" && $NON_INTERACTIVE -eq 0 ]]; then
   prompt_password() {
-  local prompt="$1"
-  local var
-  if [[ -t 0 ]]; then
-    # stdin is a tty
-    printf "%s" "$prompt"
-    stty -echo
-    read -r var
-    stty echo
-    printf "\n"
-  else
-    # stdin is NOT a tty (curl | bash)
-    read -rsp "$prompt" var </dev/tty
-    printf "\n" >/dev/tty
-  fi
-  printf "%s" "$var"
-}
+    local prompt="$1"
+    local var
+    if [[ -t 0 ]]; then
+      # stdin is a tty
+      printf "%s" "$prompt"
+      stty -echo
+      read -r var
+      stty echo
+      printf "\n"
+    else
+      # stdin is NOT a tty (curl | bash)
+      read -rsp "$prompt" var </dev/tty
+      printf "\n" >/dev/tty
+    fi
+    printf "%s" "$var"
+  }
 
 SMB_PASS="$(prompt_password "SMB password: ")"
 
