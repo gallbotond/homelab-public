@@ -49,11 +49,26 @@ done
 [[ -z "$SMB_USER" && $NON_INTERACTIVE -eq 0 ]] && read -rp "SMB username: " SMB_USER
 
 if [[ -z "$SMB_PASS" && $NON_INTERACTIVE -eq 0 ]]; then
-  printf "SMB password: "
-  stty -echo
-  read -r SMB_PASS
-  stty echo
-  printf "\n"
+  prompt_password() {
+  local prompt="$1"
+  local var
+  if [[ -t 0 ]]; then
+    # stdin is a tty
+    printf "%s" "$prompt"
+    stty -echo
+    read -r var
+    stty echo
+    printf "\n"
+  else
+    # stdin is NOT a tty (curl | bash)
+    read -rsp "$prompt" var </dev/tty
+    printf "\n" >/dev/tty
+  fi
+  printf "%s" "$var"
+}
+
+SMB_PASS="$(prompt_password "SMB password: ")"
+
 fi
 
 [[ -z "$SMB_USER" || -z "$SMB_PASS" ]] && err "SMB credentials not provided"
