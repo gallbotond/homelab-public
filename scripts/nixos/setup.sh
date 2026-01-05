@@ -1,137 +1,153 @@
 #!/usr/bin/env nix-shell
-#!nix-shell -i bash -p cifs-utils git openssh coreutils
+#!nix-shell -i bash -p samba git openssh coreutils findutils
 
 set -euo pipefail
 
-### ---------------------------
-### CONFIG
-### ---------------------------
+# ------------------------------------------------------------------------------
+# Logging helpers
+# ------------------------------------------------------------------------------
+log()  { printf "[setup] %s\n" "$*"; }
+warn() { printf "[warn] %s\n" "$*"; }
+err()  { printf "[error] %s\n" "$*"; exit 1; }
 
-SMB_SERVER="//192.168.1.100/Secrets"          # e.g. //nas/secrets
-SMB_KEY_PATH="/SSH keys/gallbotond.local/"             # path inside SMB share
-GIT_REPO_SSH="git@github.com:gallbotond/homelab.git"
-
-SSH_KEY_NAME="id_rsa"
-SSH_HOST="github.com"
-
-### ---------------------------
-### ARGUMENT PARSING
-### ---------------------------
+# ------------------------------------------------------------------------------
+# Defaults / Config
+# ------------------------------------------------------------------------------
+SMB_SERVER="192.168.1.100"
+SMB_SHARE="Secrets"
+SMB_PATH="SSH keys/gallbotond.local"
 
 SMB_USER=""
 SMB_PASS=""
+NON_INTERACTIVE=0
 
-usage() {
-  echo "Usage: $0 [-u smb_user] [-p smb_password]"
-  exit 1
-}
+GIT_REPO_SSH="git@github.com:gallbotond/homelab.git"
+SSH_HOST="github.com"
 
-while getopts "u:p:h" opt; do
-  case "$opt" in
-    u) SMB_USER="$OPTARG" ;;
-    p) SMB_PASS="$OPTARG" ;;
-    h) usage ;;
+# ------------------------------------------------------------------------------
+# Parse arguments
+# ------------------------------------------------------------------------------
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --smb-server)      SMB_SERVER="$2"; shift 2;;
+    --share)           SMB_SHARE="$2"; shift 2;;
+    --share-path)      SMB_PATH="$2"; shift 2;;
+    --smb-user)        SMB_USER="$2"; shift 2;;
+    --smb-pass)        SMB_PASS="$2"; shift 2;;
+    --non-interactive) NON_INTERACTIVE=1; shift;;
+    -h|--help)
+      echo "Usage: $0 [--smb-user USER] [--smb-pass PASS] [--non-interactive]"
+      exit 0
+      ;;
+    *) shift;;
   esac
 done
 
-if [[ -z "$SMB_USER" ]]; then
-  read -rp "SMB username: " SMB_USER
+# ------------------------------------------------------------------------------
+# Credentials
+# ------------------------------------------------------------------------------
+[[ -z "$SMB_USER" && $NON_INTERACTIVE -eq 0 ]] && read -rp "SMB username: " SMB_USER
+
+if [[ -z "$SMB_PASS" && $NON_INTERACTIVE -eq 0 ]]; then
+  printf "SMB password: "
+  stty -echo
+  read -r SMB_PASS
+  stty echo
+  printf "\n"
 fi
 
-if [[ -z "$SMB_PASS" ]]; then
-  read -srp "SMB password: " SMB_PASS
-  echo
-fi
+[[ -z "$SMB_USER" || -z "$SMB_PASS" ]] && err "SMB credentials not provided"
 
-### ---------------------------
-### PATHS
-### ---------------------------
+log "Connecting to //$SMB_SERVER/$SMB_SHARE"
+log "Remote path: $SMB_PATH"
 
-GIT_DIR="$HOME/Git"
+# ------------------------------------------------------------------------------
+# Prepare directories
+# ------------------------------------------------------------------------------
 SSH_DIR="$HOME/.ssh"
-SSH_KEY="$SSH_DIR/$SSH_KEY_NAME"
+GIT_DIR="$HOME/Git"
 SSH_CONFIG="$SSH_DIR/config"
-MOUNT_POINT="$(mktemp -d)"
 
-cleanup() {
-  sudo umount "$MOUNT_POINT" 2>/dev/null || true
-  rmdir "$MOUNT_POINT" 2>/dev/null || true
-}
-trap cleanup EXIT
-
-### ---------------------------
-### DIRECTORY SETUP (idempotent)
-### ---------------------------
-
-mkdir -p "$GIT_DIR"
-mkdir -p "$SSH_DIR"
+mkdir -p "$SSH_DIR" "$GIT_DIR"
 chmod 700 "$SSH_DIR"
 
-### ---------------------------
-### SSH KEY SETUP (idempotent)
-### ---------------------------
+# ------------------------------------------------------------------------------
+# Fetch files from SMB into temp dir
+# ------------------------------------------------------------------------------
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
 
-if [[ ! -f "$SSH_KEY" ]]; then
-  echo "▶ SSH key not found, mounting SMB share"
+log "Fetching SSH keys via smbclient"
 
-  sudo mount -t cifs "$SMB_SERVER" "$MOUNT_POINT" \
-    -o "username=$SMB_USER,password=$SMB_PASS,ro"
+(
+  cd "$TMP_DIR"
+  smbclient "//$SMB_SERVER/$SMB_SHARE" \
+    -U "${SMB_USER}%${SMB_PASS}" \
+    -c "cd \"$SMB_PATH\"; recurse; prompt; mget *"
+) || err "Failed to fetch files from SMB share"
 
-  echo "▶ Copying SSH key"
-  cp "$MOUNT_POINT/$SMB_KEY_PATH" "$SSH_KEY"
-  chmod 600 "$SSH_KEY"
+# ------------------------------------------------------------------------------
+# Install SSH keys (idempotent)
+# ------------------------------------------------------------------------------
+found_keys=0
 
-  if [[ -f "$MOUNT_POINT/$SMB_KEY_PATH.pub" ]]; then
-    cp "$MOUNT_POINT/$SMB_KEY_PATH.pub" "$SSH_KEY.pub"
-    chmod 644 "$SSH_KEY.pub"
+while IFS= read -r -d '' key; do
+  dst="$SSH_DIR/$(basename "$key")"
+  if [[ ! -f "$dst" ]]; then
+    mv "$key" "$dst"
+    chmod 600 "$dst"
+    log "Installed private key: $(basename "$dst")"
   fi
-else
-  echo "✔ SSH key already exists, skipping copy"
-fi
+  found_keys=1
+done < <(find "$TMP_DIR" -type f -name "id_*" ! -name "*.pub" -print0)
 
-### ---------------------------
-### SSH CONFIG (idempotent)
-### ---------------------------
+while IFS= read -r -d '' key; do
+  dst="$SSH_DIR/$(basename "$key")"
+  if [[ ! -f "$dst" ]]; then
+    mv "$key" "$dst"
+    chmod 644 "$dst"
+    log "Installed public key: $(basename "$dst")"
+  fi
+  found_keys=1
+done < <(find "$TMP_DIR" -type f -name "*.pub" -print0)
 
+[[ $found_keys -eq 0 ]] && warn "No SSH keys found"
+
+# ------------------------------------------------------------------------------
+# SSH config (idempotent)
+# ------------------------------------------------------------------------------
 if [[ ! -f "$SSH_CONFIG" ]] || ! grep -q "Host $SSH_HOST" "$SSH_CONFIG"; then
-  echo "▶ Updating ~/.ssh/config"
-
+  log "Updating ~/.ssh/config"
   {
     echo
     echo "Host $SSH_HOST"
     echo "  User git"
-    echo "  IdentityFile $SSH_KEY"
     echo "  AddKeysToAgent yes"
+    echo "  IdentityFile $SSH_DIR/id_rsa"
   } >> "$SSH_CONFIG"
-
   chmod 600 "$SSH_CONFIG"
-else
-  echo "✔ SSH config already contains $SSH_HOST"
 fi
 
-### ---------------------------
-### SSH AGENT (best-effort)
-### ---------------------------
-
+# ------------------------------------------------------------------------------
+# SSH agent (best-effort)
+# ------------------------------------------------------------------------------
 if ! ssh-add -l >/dev/null 2>&1; then
   eval "$(ssh-agent -s)" >/dev/null
 fi
 
-ssh-add "$SSH_KEY" >/dev/null 2>&1 || true
+ssh-add "$SSH_DIR"/id_* >/dev/null 2>&1 || true
 
-### ---------------------------
-### GIT CLONE (idempotent)
-### ---------------------------
-
+# ------------------------------------------------------------------------------
+# Clone repo (idempotent)
+# ------------------------------------------------------------------------------
 cd "$GIT_DIR"
-
 REPO_NAME="$(basename "$GIT_REPO_SSH" .git)"
 
 if [[ -d "$REPO_NAME/.git" ]]; then
-  echo "✔ Repository already exists: $REPO_NAME"
+  log "Repository already exists: $REPO_NAME"
 else
-  echo "▶ Cloning repository"
+  log "Cloning repository"
   git clone "$GIT_REPO_SSH"
 fi
 
-echo "✅ Setup complete"
+log "Setup complete ✅"
