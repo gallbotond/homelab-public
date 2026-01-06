@@ -3,6 +3,10 @@
 
 set -euo pipefail
 
+# ------------------------------------------------------------------------------
+# Environment & dependency checks
+# ------------------------------------------------------------------------------
+
 if [[ -z "${IN_NIX_SHELL:-}" ]]; then
   cat >&2 <<'EOF'
 [error] This script must be run inside nix-shell.
@@ -15,6 +19,25 @@ Or:
   curl -LO https://github.com/gallbotond/homelab-public/raw/refs/heads/main/scripts/nixos/setup.sh
   chmod +x setup.sh
   nix-shell -p samba git openssh coreutils findutils --run "./setup.sh"
+EOF
+  exit 1
+fi
+
+missing=0
+for cmd in smbclient git ssh ssh-add find mktemp; do
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    echo "[error] Required command not found: $cmd" >&2
+    missing=1
+  fi
+done
+
+if [[ $missing -eq 1 ]]; then
+  cat >&2 <<'EOF'
+
+[error] One or more required tools are missing.
+
+Make sure you entered nix-shell with:
+  nix-shell -p samba git openssh coreutils findutils
 
 EOF
   exit 1
