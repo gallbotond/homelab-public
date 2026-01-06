@@ -13,7 +13,7 @@ if [[ -z "${IN_NIX_SHELL:-}" ]]; then
 
 Example:
   nix-shell -p samba git openssh coreutils findutils --run \
-    "curl -fsSL https://github.com/gallbotond/homelab-public/raw/refs/heads/main/scripts/nixos/setup.sh | bash -i"
+  "curl -fsSL https://github.com/gallbotond/homelab-public/raw/refs/heads/main/scripts/nixos/setup.sh | bash"
 
 Or:
   curl -LO https://github.com/gallbotond/homelab-public/raw/refs/heads/main/scripts/nixos/setup.sh
