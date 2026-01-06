@@ -3,6 +3,24 @@
 
 set -euo pipefail
 
+if [[ -z "${IN_NIX_SHELL:-}" ]]; then
+  cat >&2 <<'EOF'
+[error] This script must be run inside nix-shell.
+
+Example:
+  nix-shell -p samba git openssh coreutils findutils --run \
+    "curl -fsSL https://github.com/gallbotond/homelab-public/raw/refs/heads/main/scripts/nixos/setup.sh | bash -i"
+
+Or:
+  curl -LO https://github.com/gallbotond/homelab-public/raw/refs/heads/main/scripts/nixos/setup.sh
+  chmod +x setup.sh
+  nix-shell -p samba git openssh coreutils findutils --run "./setup.sh"
+
+EOF
+  exit 1
+fi
+
+
 # ------------------------------------------------------------------------------
 # Logging helpers
 # ------------------------------------------------------------------------------
