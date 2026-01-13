@@ -63,21 +63,21 @@ ARGS=("$@")
 log "Starting WSL setup via remote scripts..."
 
 
-fetch_and_run "installers/install_zoxide.sh"
-fetch_and_run "installers/install_homebrew.sh"
+# fetch_and_run "installers/install_zoxide.sh"
+# fetch_and_run "installers/install_homebrew.sh"
 
-# Make brew immediately available
-log "Configuring Homebrew for current shell session"
-eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+# # Make brew immediately available
+# log "Configuring Homebrew for current shell session"
+# eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 
-# Ensure persistent PATH for future shells
-log "Ensuring Homebrew is in PATH for future shell sessions"
-grep -qxF 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' ~/.bashrc || \
-    echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> ~/.bashrc
+# # Ensure persistent PATH for future shells
+# log "Ensuring Homebrew is in PATH for future shell sessions"
+# grep -qxF 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' ~/.bashrc || \
+#     echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> ~/.bashrc
 
-log "Installing asdf and plugins..."
-fetch_and_run "installers/install_asdf.sh"
-fetch_and_run "installers/install_asdf_plugins.sh" terraform terragrunt
+# log "Installing asdf and plugins..."
+# fetch_and_run "installers/install_asdf.sh"
+# fetch_and_run "installers/install_asdf_plugins.sh" terraform terragrunt
 
 log "Configuring ssh keys..."
 fetch_and_run "smb/fetch_keys.sh" "${ARGS[@]}"
