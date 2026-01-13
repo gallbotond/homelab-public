@@ -72,11 +72,19 @@ fi
 # Credentials
 # ------------------------------------------------------------------------------
 if [[ -z "$SMB_PASS" && $NON_INTERACTIVE -eq 0 ]]; then
-	printf "SMB password: "
-	stty -echo
-	read -r SMB_PASS
-	stty echo
-	printf "\n"
+	if [[ -t 0 ]]; then
+		printf "SMB password: "
+		stty -echo
+		read -r SMB_PASS
+		stty echo
+		printf "\n"
+	else
+		printf "SMB password: " >/dev/tty
+		stty -echo </dev/tty
+		read -r SMB_PASS </dev/tty
+		stty echo </dev/tty
+		printf "\n" >/dev/tty
+	fi
 fi
 
 [[ -z "$SMB_PASS" ]] && err "SMB password not provided"
