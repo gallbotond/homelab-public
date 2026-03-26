@@ -13,3 +13,6 @@ cd ProxmoxVE-Post-Install-Script
 
 chmod +x post-pve-install.sh
 # ./post-pve-install.sh
+
+# set up tailscale
+curl -fsSL https://tailscale.com/install.sh | sh
