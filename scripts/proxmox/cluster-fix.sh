@@ -51,7 +51,7 @@ if [[ -z "$DEAD_NODE" ]]; then
 	echo ""
 	pvecm nodes 2>/dev/null || true
 	echo ""
-	read -rp "Enter the name of the DEAD/failed node to remove: " DEAD_NODE
+	read -rp "Enter the name of the DEAD/failed node to remove: " DEAD_NODE </dev/tty
 fi
 
 if [[ -z "$DEAD_NODE" ]]; then
