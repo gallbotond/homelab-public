@@ -6,11 +6,7 @@ set -e
 bash <(curl -s https://raw.githubusercontent.com/foundObjects/pve-nag-buster/refs/heads/master/install.sh)
 
 # post install script
-git clone https://github.com/Lalatenduswain/ProxmoxVE-Post-Install-Script.git &&
-	cd ProxmoxVE-Post-Install-Script || {
-	echo "Clone/cd failed"
-	exit 1
-}
+bash <(curl -s https://raw.githubusercontent.com/Lalatenduswain/ProxmoxVE-Post-Install-Script/refs/heads/master/post-pve-install.sh)
 
 chmod +x post-pve-install.sh
 # ./post-pve-install.sh
