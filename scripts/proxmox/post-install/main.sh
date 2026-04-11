@@ -25,3 +25,5 @@ echo 'eval "$(zoxide init bash)"' >>~/.bashrc
 
 # install remaining tools
 apt-get install btop -y
+
+
