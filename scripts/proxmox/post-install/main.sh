@@ -24,7 +24,7 @@ fi
 bash <(curl -fsSL "https://raw.githubusercontent.com/foundObjects/pve-nag-buster/refs/heads/master/install.sh")
 
 # post install script
-bash <(curl -fsSL "$POST_INSTALL_URL") -- "${POST_INSTALL_ARGS[@]}"
+bash <(curl -fsSL "$POST_INSTALL_URL") "${POST_INSTALL_ARGS[@]}"
 
 # post install script dependencies
 apt-get update

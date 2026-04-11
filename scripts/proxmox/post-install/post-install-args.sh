@@ -50,9 +50,8 @@ Options:
   --update               Run apt update + dist-upgrade
   --reboot               Reboot after completion
   --yes-to-all           Apply all of the above (except reboot and HA changes)
-  -h, --help             Show this help message
+	-h, --help             Show this help message
 EOF
-	exit 0
 }
 
 # Defaults (all off)
@@ -72,6 +71,10 @@ parse_args() {
 	INTERACTIVE=false
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
+		--)
+			shift
+			break
+			;;
 		--fix-sources) OPT_FIX_SOURCES=true ;;
 		--disable-enterprise) OPT_DISABLE_ENTERPRISE=true ;;
 		--enable-no-sub) OPT_ENABLE_NO_SUB=true ;;
@@ -91,10 +94,14 @@ parse_args() {
 			OPT_DISABLE_NAG=true
 			OPT_UPDATE=true
 			;;
-		-h | --help) usage ;;
-		*)
-			echo "Unknown option: $1"
+		-h | --help)
 			usage
+			exit 0
+			;;
+		*)
+			echo "Unknown option: $1" >&2
+			usage
+			exit 1
 			;;
 		esac
 		shift
