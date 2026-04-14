@@ -1,0 +1,44 @@
+{
+  "packages": [
+    {
+      "id": "Git.Git",
+      "name": "Git",
+      "category": "development"
+    },
+    {
+      "id": "Microsoft.WindowsTerminal",
+      "name": "Windows Terminal",
+      "category": "terminal"
+    },
+    {
+      "id": "Microsoft.VisualStudioCode",
+      "name": "Visual Studio Code",
+      "category": "development"
+    },
+    {
+      "id": "OBSProject.OBSStudio",
+      "name": "OBS Studio",
+      "category": "media"
+    },
+    {
+      "id": "Syncthing.Syncthing",
+      "name": "Syncthing",
+      "category": "sync"
+    },
+    {
+      "id": "mRemoteNG.mRemoteNG",
+      "name": "mRemoteNG",
+      "category": "remote-access"
+    },
+    {
+      "id": "Audacious.Audacious",
+      "name": "Audacious",
+      "category": "media"
+    },
+    {
+      "id": "Docker.DockerDesktop",
+      "name": "Docker Desktop",
+      "category": "containers"
+    }
+  ]
+}

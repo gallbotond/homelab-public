@@ -1,0 +1,17 @@
+{
+  "defaultRoot": "%USERPROFILE%\\Git",
+  "repositories": [
+    {
+      "name": "homelab-public",
+      "url": "git@github.com:gallbotond/homelab-public.git",
+      "provider": "github",
+      "group": "personal"
+    },
+    {
+      "name": "example-work-repo",
+      "url": "git@gitlab.com:example-group/example-work-repo.git",
+      "provider": "gitlab",
+      "group": "work"
+    }
+  ]
+}

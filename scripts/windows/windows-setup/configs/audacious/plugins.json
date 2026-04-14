@@ -1,0 +1,8 @@
+{
+  "plugins": [
+    {
+      "name": "Sample plugin",
+      "notes": "Replace with the plugins you actually keep installed."
+    }
+  ]
+}

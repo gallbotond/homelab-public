@@ -1,0 +1,24 @@
+{
+  "packages": [
+    {
+      "name": "OpenCode",
+      "url": "https://github.com/sst/opencode",
+      "notes": "Install manually or replace with a custom installer once you settle on the desired channel."
+    },
+    {
+      "name": "OBS Studio plugins",
+      "url": "https://obsproject.com/forum/resources/",
+      "notes": "Keep plugin selection in configs/obs-studio/plugins.json."
+    },
+    {
+      "name": "Audacious plugins",
+      "url": "https://audacious-media-player.org/plugins",
+      "notes": "Keep plugin selection in configs/audacious/plugins.json."
+    },
+    {
+      "name": "VPN profiles or keys",
+      "url": "https://www.wireguard.com/install/",
+      "notes": "Use creds manifests to document which profiles are imported from TrueNAS and which must be created manually."
+    }
+  ]
+}

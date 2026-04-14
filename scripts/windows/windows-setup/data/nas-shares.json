@@ -1,0 +1,14 @@
+{
+  "shares": [
+    {
+      "name": "Media",
+      "driveLetter": "M:",
+      "path": "\\\\truenas-scale\\Media"
+    },
+    {
+      "name": "Archive",
+      "driveLetter": "A:",
+      "path": "\\\\truenas-scale\\Archive"
+    }
+  ]
+}

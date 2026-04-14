@@ -1,0 +1,16 @@
+{
+  "links": [
+    {
+      "name": "OpenCode project",
+      "url": "https://github.com/sst/opencode"
+    },
+    {
+      "name": "OBS plugin catalog",
+      "url": "https://obsproject.com/forum/resources/"
+    },
+    {
+      "name": "Audacious plugins",
+      "url": "https://audacious-media-player.org/plugins"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "nas": {
+    "server": "truenas-scale",
+    "share": "Secrets",
+    "basePath": "windows"
+  },
+  "artifacts": [
+    {
+      "name": "VPN keys",
+      "source": "vpn",
+      "destination": "%USERPROFILE%\\Documents\\VPN"
+    },
+    {
+      "name": "RDP connections",
+      "source": "rdp",
+      "destination": "%APPDATA%\\mRemoteNG"
+    },
+    {
+      "name": "Git credentials",
+      "source": "git\\.git-credentials",
+      "destination": "%USERPROFILE%\\.config\\git\\credentials"
+    },
+    {
+      "name": "Password manager database",
+      "source": "passwords\\vault.kdbx",
+      "destination": "%USERPROFILE%\\Documents\\Vault\\vault.kdbx"
+    }
+  ],
+  "manualLinks": [
+    {
+      "name": "WireGuard manual setup",
+      "url": "https://www.wireguard.com/quickstart/"
+    },
+    {
+      "name": "GitLab sign-in",
+      "url": "https://gitlab.com/users/sign_in"
+    }
+  ]
+}

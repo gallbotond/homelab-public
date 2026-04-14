@@ -1,0 +1,12 @@
+{
+  "$schema": "https://aka.ms/terminal-profiles-schema",
+  "copyFormatting": "none",
+  "theme": "system",
+  "profiles": {
+    "defaults": {
+      "font": {
+        "face": "Cascadia Code"
+      }
+    }
+  }
+}

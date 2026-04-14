@@ -1,0 +1,8 @@
+{
+  "plugins": [
+    {
+      "name": "obs-websocket",
+      "notes": "Document the version or installer source you want to standardize on."
+    }
+  ]
+}

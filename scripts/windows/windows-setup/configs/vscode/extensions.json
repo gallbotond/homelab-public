@@ -1,0 +1,7 @@
+{
+  "extensions": [
+    "eamodio.gitlens",
+    "esbenp.prettier-vscode",
+    "ms-vscode.powershell"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "jobs": [
+    {
+      "name": "sync-recordings",
+      "description": "Deploy the robocopy helper for recording sync",
+      "source": "configs/jobs/robocopy-recordings.ps1",
+      "destination": "%USERPROFILE%\\Scripts\\robocopy-recordings.ps1",
+      "registrationHint": "Register a Scheduled Task or run it from Task Scheduler at logon."
+    }
+  ]
+}

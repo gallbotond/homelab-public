@@ -1,0 +1,48 @@
+{
+  "apps": [
+    {
+      "name": "opencode",
+      "description": "Copy OpenCode config",
+      "source": "configs/opencode/config.toml",
+      "destination": "%APPDATA%\\OpenCode\\config.toml"
+    },
+    {
+      "name": "windows-terminal",
+      "description": "Copy Windows Terminal settings",
+      "source": "configs/terminal/settings.json",
+      "destination": "%LOCALAPPDATA%\\Packages\\Microsoft.WindowsTerminal_8wekyb3d8bbwe\\LocalState\\settings.json"
+    },
+    {
+      "name": "vscode",
+      "description": "Copy VS Code settings and install extensions",
+      "source": "configs/vscode/settings.json",
+      "destination": "%APPDATA%\\Code\\User\\settings.json"
+    },
+    {
+      "name": "syncthing",
+      "description": "Copy Syncthing template config",
+      "source": "configs/syncthing/config.xml.template",
+      "destination": "%LOCALAPPDATA%\\Syncthing\\config.xml"
+    },
+    {
+      "name": "mremoteng",
+      "description": "Copy mRemoteNG template config",
+      "source": "configs/mremoteng/confCons.xml.template",
+      "destination": "%APPDATA%\\mRemoteNG\\confCons.xml"
+    },
+    {
+      "name": "obs-studio",
+      "description": "Copy OBS plugin plan and run plugin helper",
+      "source": "configs/obs-studio/plugins.json",
+      "destination": "%APPDATA%\\obs-studio\\plugin-plan.json",
+      "postInstallScript": "installers/custom/install-obs-plugins.ps1"
+    },
+    {
+      "name": "audacious",
+      "description": "Copy Audacious plugin plan and run plugin helper",
+      "source": "configs/audacious/plugins.json",
+      "destination": "%APPDATA%\\Audacious\\plugin-plan.json",
+      "postInstallScript": "installers/custom/install-audacious-plugins.ps1"
+    }
+  ]
+}
