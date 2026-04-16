@@ -21,7 +21,7 @@ curl -fsSL https://github.com/gallbotond/homelab-public/raw/refs/heads/main/clon
 PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/gallbotond/homelab-public/clone-homelab-public.ps1 | iex
+irm https://github.com/gallbotond/homelab-public/raw/refs/heads/main/clone-homelab-public.ps1 | iex
 ```
 
 Both commands install `git` if needed and clone the repo into `~/Git/homelab-public`.
