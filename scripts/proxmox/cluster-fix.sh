@@ -5,7 +5,7 @@
 #   1. Restores quorum on the surviving node
 #   2. Removes the dead node from the cluster
 #   3. Restarts WebUI daemons (fixes 2FA / login issues)
-#   4. Optionally strips 2FA from a user account via CLI
+#   4. Optionally disables 2FA on the node by backing up the TFA config
 # Usage: sudo bash proxmox-cluster-fix.sh [dead-node-name]
 # =============================================================================
 
@@ -132,25 +132,35 @@ for svc in pvedaemon pveproxy; do
 	fi
 done
 
-# ── Step 4 (optional): Strip 2FA from a user ─────────────────────────────────
-banner "Step 4 — Optional: Remove 2FA from a User"
+# ── Step 4 (optional): Disable 2FA on the node ───────────────────────────────
+banner "Step 4 — Optional: Disable 2FA on This Node"
 
-echo "Current users:"
-pveum user list 2>/dev/null || true
-echo ""
+TFA_CONFIG="/etc/pve/priv/tfa.cfg"
 
-read -rp "Enter a username to remove 2FA (e.g. root@pam), or press ENTER to skip: " TARGET_USER
+read -rp "Disable Proxmox 2FA on this node by backing up ${TFA_CONFIG}? (y/N): " DISABLE_TFA
 
-if [[ -n "$TARGET_USER" ]]; then
-	info "Removing 2FA from '${TARGET_USER}'..."
-	if pveum user modify "$TARGET_USER" -tfa '' 2>&1; then
-		ok "2FA removed from '${TARGET_USER}'. Log in with password only."
-		warn "Re-enroll 2FA after confirming WebUI access is stable."
+if [[ "$DISABLE_TFA" =~ ^[Yy]$ ]]; then
+	if [[ -f "$TFA_CONFIG" ]]; then
+		TFA_BACKUP="${TFA_CONFIG}.bak.$(date +%Y%m%d%H%M%S)"
+		info "Backing up 2FA config to ${TFA_BACKUP}"
+		cp "$TFA_CONFIG" "$TFA_BACKUP"
+		: >"$TFA_CONFIG"
+		ok "2FA disabled on this node."
+		warn "Restore ${TFA_BACKUP} or re-enroll users after confirming WebUI access is stable."
+
+		for svc in pvedaemon pveproxy; do
+			info "Restarting ${svc} to apply 2FA change..."
+			if systemctl restart "$svc"; then
+				ok "${svc} restarted."
+			else
+				warn "Failed to restart ${svc}. Check: systemctl status ${svc}"
+			fi
+		done
 	else
-		warn "Could not remove 2FA. User may not exist or tfa field may already be empty."
+		warn "2FA config not found at ${TFA_CONFIG}. It may already be disabled."
 	fi
 else
-	info "Skipping 2FA removal."
+	info "Skipping 2FA disable step."
 fi
 
 # ── Final status ──────────────────────────────────────────────────────────────
