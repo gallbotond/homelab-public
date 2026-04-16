@@ -5,6 +5,7 @@ param()
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+$scriptUrl = 'https://raw.githubusercontent.com/gallbotond/homelab-public/main/clone-homelab-public.ps1'
 $repoUrl = 'https://github.com/gallbotond/homelab-public.git'
 $repoName = 'homelab-public'
 $targetRoot = Join-Path $HOME 'Git'
@@ -43,6 +44,37 @@ function Refresh-ProcessPath {
     }
 }
 
+function Invoke-SelfRetry {
+    if ($env:HOMELAB_PUBLIC_CLONE_RETRY -eq '1') {
+        return $false
+    }
+
+    $shell = if (Get-Command pwsh -ErrorAction SilentlyContinue) {
+        'pwsh'
+    }
+    elseif (Get-Command powershell -ErrorAction SilentlyContinue) {
+        'powershell'
+    }
+    else {
+        throw 'Could not find pwsh or powershell to relaunch the bootstrap script.'
+    }
+
+    Write-Log 'git was installed but is not available in this session. Retrying once in a new PowerShell session...'
+
+    $retryCommand = "& { `
+`$env:HOMELAB_PUBLIC_CLONE_RETRY = '1' `
+irm '$scriptUrl' | iex `
+}"
+
+    & $shell -NoProfile -ExecutionPolicy Bypass -Command $retryCommand
+
+    if ($LASTEXITCODE -ne 0) {
+        throw 'The relaunched bootstrap script failed.'
+    }
+
+    return $true
+}
+
 function Ensure-Git {
     $gitPath = Get-GitPath
     if ($gitPath) {
@@ -55,19 +87,26 @@ function Ensure-Git {
         throw 'winget is not available. Install git manually and rerun the script.'
     }
 
-    & winget install --id Git.Git -e --source winget --accept-source-agreements --accept-package-agreements
+    & winget install --id Git.Git -e --source winget --accept-source-agreements --accept-package-agreements | Out-Host
 
     Refresh-ProcessPath
     $gitPath = Get-GitPath
 
     if (-not $gitPath) {
-        throw 'Git was installed but git.exe is still not available. Open a new PowerShell session and rerun the script.'
+        if (Invoke-SelfRetry) {
+            return $null
+        }
+
+        throw 'Git was installed but git.exe is still not available after a retry. Open a new PowerShell session and rerun the script.'
     }
 
     return $gitPath
 }
 
 $gitPath = Ensure-Git
+if (-not $gitPath) {
+    return
+}
 
 New-Item -ItemType Directory -Path $targetRoot -Force | Out-Null
 
