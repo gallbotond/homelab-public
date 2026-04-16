@@ -1,4 +1,4 @@
 *.env
-scripts/windows/windows-setup/secrets/runtime/
-scripts/windows/windows-setup/data/*.local.json
-scripts/windows/windows-setup/configs/**/*.local.*
+scripts/windows/setup/secrets/runtime/
+scripts/windows/setup/data/*.local.json
+scripts/windows/setup/configs/**/*.local.*
