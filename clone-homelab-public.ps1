@@ -103,6 +103,19 @@ function Ensure-Git {
     return $gitPath
 }
 
+function Set-UserExecutionPolicy {
+    $desiredPolicy = 'RemoteSigned'
+    $currentPolicy = Get-ExecutionPolicy -Scope CurrentUser
+
+    if ($currentPolicy -eq $desiredPolicy) {
+        Write-Log "PowerShell execution policy already set to $desiredPolicy for CurrentUser"
+        return
+    }
+
+    Write-Log "Setting PowerShell execution policy for CurrentUser to $desiredPolicy"
+    Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy $desiredPolicy -Force
+}
+
 $gitPath = Ensure-Git
 if (-not $gitPath) {
     return
@@ -118,5 +131,7 @@ else {
     Write-Log "Cloning $repoUrl into $targetDir"
     & $gitPath clone $repoUrl $targetDir
 }
+
+Set-UserExecutionPolicy
 
 Write-Log "Repository is ready at $targetDir"
